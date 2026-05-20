@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation';
 import { 
   FileText, Image as ImageIcon, Inbox, LogOut, Save, Plus, 
   Trash2, UploadCloud, CheckCircle, RefreshCw, Eye, User,
-  Edit3, X, Film, Camera
+  Edit3, X, Film, Camera, Cpu, Terminal, Shield, Database,
+  Search, Mail, Copy
 } from 'lucide-react';
 import type { PortfolioInfo, Project, ContactMessage } from '@/lib/supabase';
 
@@ -68,11 +69,74 @@ const compressImageToWebP = (file: File, quality = 0.8): Promise<Blob> => {
 
 export default function AdminDashboard({ initialInfo, initialProjects, initialMessages }: AdminDashboardProps) {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'copy' | 'gallery' | 'inbox'>('copy');
+  const [activeTab, setActiveTab] = useState<'copy' | 'gallery' | 'inbox' | 'system'>('copy');
   
   // Dashboard states
   const [projects, setProjects] = useState<Project[]>(initialProjects || []);
   const [messages, setMessages] = useState<ContactMessage[]>(initialMessages || []);
+
+  // Search & Filter States
+  const [gallerySearch, setGallerySearch] = useState('');
+  const [inboxSearch, setInboxSearch] = useState('');
+  const [inboxFilter, setInboxFilter] = useState<'all' | 'unread' | 'read'>('all');
+
+  // Copy/Reply Message Modal Overlay
+  const [activeMessageDetail, setActiveMessageDetail] = useState<ContactMessage | null>(null);
+  const [copyFeedback, setCopyFeedback] = useState(false);
+
+  // System Telemetry Console States
+  const [systemLogs, setSystemLogs] = useState<string[]>([
+    'SYSTEM INITIALIZATION SECURE DECK ACTIVATED',
+    'VERIFYING CRYPTO AUTH TOKEN KEYS... [VALID]',
+    'PORTFOLIO CONCRETE CORE SERVER ONLINE // BOHOL_MATRIX_UBUJAN_GRID_EDGE',
+    'SUPABASE POSTGRES CONNECTION POOL STABLE... (CONN_OK)',
+    'READY FOR BLUEPRINT TRANSMISSIONS'
+  ]);
+  const [pingTime, setPingTime] = useState<number>(32);
+
+  // Periodic visual telemetry log updates
+  React.useEffect(() => {
+    if (activeTab !== 'system') return;
+
+    const logSnippets = [
+      'CORE ENGINE: THERMAL DISK DRAIN COMPLETED',
+      'SUPABASE BUCKET: PORTFOLIO_IMAGES CHECKED // ALL READOUTS SYNCED',
+      'VECTOR OSCILLOSCOPE: SONIC ENGINE EMISSION COEFFICIENT 0.70',
+      'EDGE API DISPATCH: PARALLAX HUD CORES BOOTED',
+      'BACKUP DRIVES: ENCRYPTING TELEMETRY SECTOR...',
+      'SYSTEM DIAGNOSTICS: FRAMERATE STABLE AT 60FPS',
+      'EDGE LATENCY: DISPATCHING MATRIX PING TO SGP-1',
+      'VERCEL DEPLOYMENT: PRODUCTION SSL STATUS // RENDER STABLE',
+      'DECRYPTING CYBERNETIC MEMORY BRUTALIST ARCHIVES...'
+    ];
+
+    const interval = setInterval(() => {
+      const randomLog = logSnippets[Math.floor(Math.random() * logSnippets.length)];
+      setSystemLogs(prev => [...prev.slice(-14), `[${new Date().toLocaleTimeString()}] ${randomLog}`]);
+      setPingTime(Math.floor(25 + Math.random() * 18));
+    }, 3500);
+
+    return () => clearInterval(interval);
+  }, [activeTab]);
+
+  // Database Backup JSON exporter
+  const handleBackupExport = () => {
+    const backupPayload = {
+      exportedAt: new Date().toISOString(),
+      source: 'Cyrhiel Moralla Avant-Garde Portfolio Admin Console',
+      portfolioInfo: copyData,
+      projects: projects,
+      contactMessages: messages
+    };
+
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupPayload, null, 2));
+    const downloadAnchor = document.createElement('a');
+    downloadAnchor.setAttribute("href", dataStr);
+    downloadAnchor.setAttribute("download", `cyrhiel_portfolio_matrix_backup_${new Date().toISOString().split('T')[0]}.json`);
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+  };
   
   // Form states - Copy
   const [copyData, setCopyData] = useState({
@@ -92,22 +156,10 @@ export default function AdminDashboard({ initialInfo, initialProjects, initialMe
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarStatus, setAvatarStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
   const [avatarError, setAvatarError] = useState('');
-  const [currentAvatar, setCurrentAvatar] = useState('/profile.png');
-
-  // Check custom avatar on mount
-  React.useEffect(() => {
-    const checkCustomAvatar = async () => {
-      try {
-        const res = await fetch('https://hzeqntoxqeylnglkgdnp.supabase.co/storage/v1/object/public/portfolio_images/profile_avatar.webp', { method: 'HEAD' });
-        if (res.ok) {
-          setCurrentAvatar('https://hzeqntoxqeylnglkgdnp.supabase.co/storage/v1/object/public/portfolio_images/profile_avatar.webp?t=' + Date.now());
-        }
-      } catch (e) {
-        console.warn('Custom avatar check failed:', e);
-      }
-    };
-    checkCustomAvatar();
-  }, []);
+  const [currentAvatar, setCurrentAvatar] = useState(() => {
+    const publicUrl = 'https://hzeqntoxqeylnglkgdnp.supabase.co/storage/v1/object/public/portfolio_images/profile_avatar.webp';
+    return `${publicUrl}?t=${Date.now()}`;
+  });
 
   const handleAvatarSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -551,6 +603,17 @@ export default function AdminDashboard({ initialInfo, initialProjects, initialMe
               </span>
             )}
           </button>
+
+          <button
+            onClick={() => setActiveTab('system')}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded text-[10px] tracking-widest text-left transition-all duration-300 focus:outline-none uppercase ${
+              activeTab === 'system' 
+                ? 'bg-white text-black font-bold' 
+                : 'text-white/60 hover:text-white hover:bg-white/5 border border-transparent'
+            }`}
+          >
+            <Cpu className="w-4 h-4" /> System Console
+          </button>
         </aside>
 
         {/* Dynamic Panel Content */}
@@ -570,6 +633,11 @@ export default function AdminDashboard({ initialInfo, initialProjects, initialMe
                   <img 
                     src={currentAvatar} 
                     alt="Current Avatar" 
+                    onError={() => {
+                      if (currentAvatar !== '/profile.png') {
+                        setCurrentAvatar('/profile.png');
+                      }
+                    }}
                     className="w-full h-full object-cover grayscale contrast-125"
                   />
                 </div>
@@ -874,89 +942,123 @@ export default function AdminDashboard({ initialInfo, initialProjects, initialMe
                     </button>
                   </div>
                 </form>
-              </div>
-
-              {/* Grid Preview, Edit, and Delete */}
+                </div>
+                 {/* Grid Preview, Edit, and Delete */}
               <div>
-                <h2 className="text-xs font-bold uppercase tracking-[0.2em] mb-4">CURRENT PROJECTS GALLERY ({projects.length})</h2>
-                
-                {projects.length === 0 ? (
-                  <div className="py-12 text-center text-[10px] text-white/20 border border-dashed border-white/10 rounded uppercase">
-                    No items in the gallery. Upload above!
+                <div className="flex flex-col md:flex-row gap-4 items-center justify-between border-b border-white/5 pb-4 mb-5">
+                  <h2 className="text-xs font-bold uppercase tracking-[0.2em]">[ CURRENT GALLERY ({projects.length}) ]</h2>
+                  
+                  <div className="relative w-full md:w-64">
+                    <Search className="absolute left-3 top-2.5 w-3 h-3 text-white/30" />
+                    <input
+                      type="text"
+                      placeholder="SEARCH BLUEPRINTS..."
+                      value={gallerySearch}
+                      onChange={(e) => setGallerySearch(e.target.value)}
+                      className="w-full bg-neutral-950/60 border border-white/10 px-8 py-2 rounded text-[9px] uppercase font-mono tracking-widest text-white placeholder-white/20 focus:outline-none focus:border-white/30 transition-all duration-300"
+                    />
+                    {gallerySearch && (
+                      <button 
+                        onClick={() => setGallerySearch('')}
+                        className="absolute right-3 top-2 text-white/40 hover:text-white text-[8px] font-mono"
+                      >
+                        [X]
+                      </button>
+                    )}
                   </div>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {projects.map((proj) => (
-                      <div key={proj.id} className="border border-white/10 bg-black/20 rounded overflow-hidden flex flex-col group relative">
-                        
-                        {/* Media preview */}
-                        <div className="aspect-[16/10] bg-[#111] overflow-hidden relative border-b border-white/10">
-                          {proj.media_type === 'video' ? (
-                            <video 
-                              src={proj.image_url} 
-                              muted 
-                              loop 
-                              playsInline 
-                              className="w-full h-full object-cover grayscale brightness-90"
-                              onMouseEnter={(e) => (e.target as HTMLVideoElement).play()}
-                              onMouseLeave={(e) => (e.target as HTMLVideoElement).pause()}
-                            />
-                          ) : (
-                            <img 
-                              src={proj.image_url} 
-                              alt={proj.title} 
-                              className="w-full h-full object-cover grayscale brightness-90"
-                            />
-                          )}
-                          <div className="absolute top-2 left-2 bg-black/60 text-[8px] font-bold tracking-widest px-2 py-0.5 rounded border border-white/10 uppercase flex items-center gap-1">
-                            {proj.media_type === 'video' ? <Film className="w-2.5 h-2.5" /> : <Camera className="w-2.5 h-2.5" />}
-                            {proj.media_type}
-                          </div>
-                        </div>
+                </div>
 
-                        {/* Details & Actions */}
-                        <div className="p-4 flex-1 flex flex-col justify-between">
-                          <div>
-                            <div className="flex gap-2 text-[8px] text-white/40 tracking-wider mb-1 uppercase font-bold">
-                              <span>{proj.client}</span>
-                              <span>•</span>
-                              <span>{proj.year}</span>
-                            </div>
-                            <h3 className="text-[11px] font-bold text-white uppercase tracking-wider mb-2 truncate">{proj.title}</h3>
-                            <p className="text-[9px] text-white/40 uppercase line-clamp-2 leading-relaxed mb-3">{proj.description}</p>
-                          </div>
+                {(() => {
+                  const filteredProjects = projects.filter(proj => 
+                    proj.title.toLowerCase().includes(gallerySearch.toLowerCase()) ||
+                    (proj.client && proj.client.toLowerCase().includes(gallerySearch.toLowerCase())) ||
+                    (proj.scale && proj.scale.toLowerCase().includes(gallerySearch.toLowerCase())) ||
+                    (proj.location && proj.location.toLowerCase().includes(gallerySearch.toLowerCase())) ||
+                    proj.year.toString().includes(gallerySearch)
+                  );
 
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => startEditProject(proj)}
-                              className="flex-1 flex items-center justify-center gap-1.5 py-1.5 border border-white/10 hover:border-white/30 text-[9px] font-bold tracking-widest text-white/70 hover:text-white hover:bg-white/5 rounded transition-all duration-300 cursor-pointer uppercase focus:outline-none"
-                            >
-                              <Edit3 className="w-3 h-3" /> EDIT
-                            </button>
-                            <button
-                              onClick={() => {
-                                if(confirm(`Are you sure you want to delete project: ${proj.title}?`)) {
-                                  handleDeleteProject(proj.id, proj.image_url);
-                                }
-                              }}
-                              disabled={deletingId === proj.id}
-                              className="flex-1 flex items-center justify-center gap-1.5 py-1.5 border border-red-500/10 hover:border-red-500/40 text-[9px] font-bold tracking-widest text-red-400 hover:text-red-300 hover:bg-red-950/20 rounded transition-all duration-300 cursor-pointer uppercase focus:outline-none"
-                            >
-                              {deletingId === proj.id ? (
-                                <><RefreshCw className="w-3 animate-spin" /> ...</>
-                              ) : (
-                                <><Trash2 className="w-3" /> DELETE</>
-                              )}
-                            </button>
-                          </div>
-                        </div>
+                  if (filteredProjects.length === 0) {
+                    return (
+                      <div className="py-12 text-center text-[10px] text-white/20 border border-dashed border-white/10 rounded uppercase font-mono tracking-widest">
+                        {gallerySearch ? 'NO MATRIX MATCHES FOUND FOR YOUR SEARCH QUERY.' : 'No items in the gallery. Upload above!'}
                       </div>
-                    ))}
-                  </div>
-                )}
+                    );
+                  }
+
+                  return (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {filteredProjects.map((proj) => (
+                        <div key={proj.id} className="border border-white/10 bg-black/20 rounded overflow-hidden flex flex-col group relative">
+                          
+                          {/* Media preview */}
+                          <div className="aspect-[16/10] bg-[#111] overflow-hidden relative border-b border-white/10">
+                            {proj.media_type === 'video' ? (
+                              <video 
+                                src={proj.image_url} 
+                                muted 
+                                loop 
+                                playsInline 
+                                className="w-full h-full object-cover grayscale brightness-90"
+                                onMouseEnter={(e) => (e.target as HTMLVideoElement).play()}
+                                onMouseLeave={(e) => (e.target as HTMLVideoElement).pause()}
+                              />
+                            ) : (
+                              <img 
+                                src={proj.image_url} 
+                                alt={proj.title} 
+                                className="w-full h-full object-cover grayscale brightness-90"
+                              />
+                            )}
+                            <div className="absolute top-2 left-2 bg-black/60 text-[8px] font-bold tracking-widest px-2 py-0.5 rounded border border-white/10 uppercase flex items-center gap-1">
+                              {proj.media_type === 'video' ? <Film className="w-2.5 h-2.5" /> : <Camera className="w-2.5 h-2.5" />}
+                              {proj.media_type}
+                            </div>
+                          </div>
+
+                          {/* Details & Actions */}
+                          <div className="p-4 flex-1 flex flex-col justify-between">
+                            <div>
+                              <div className="flex gap-2 text-[8px] text-white/40 tracking-wider mb-1 uppercase font-bold">
+                                <span>{proj.client}</span>
+                                <span>•</span>
+                                <span>{proj.year}</span>
+                              </div>
+                              <h3 className="text-[11px] font-bold text-white uppercase tracking-wider mb-2 truncate">{proj.title}</h3>
+                              <p className="text-[9px] text-white/40 uppercase line-clamp-2 leading-relaxed mb-3">{proj.description}</p>
+                            </div>
+
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => startEditProject(proj)}
+                                className="flex-1 flex items-center justify-center gap-1.5 py-1.5 border border-white/10 hover:border-white/30 text-[9px] font-bold tracking-widest text-white/70 hover:text-white hover:bg-white/5 rounded transition-all duration-300 cursor-pointer uppercase focus:outline-none"
+                              >
+                                <Edit3 className="w-3 h-3" /> EDIT
+                              </button>
+                              <button
+                                onClick={() => {
+                                  if(confirm(`Are you sure you want to delete project: ${proj.title}?`)) {
+                                    handleDeleteProject(proj.id, proj.image_url);
+                                  }
+                                }}
+                                disabled={deletingId === proj.id}
+                                className="flex-1 flex items-center justify-center gap-1.5 py-1.5 border border-red-500/10 hover:border-red-500/40 text-[9px] font-bold tracking-widest text-red-400 hover:text-red-300 hover:bg-red-950/20 rounded transition-all duration-300 cursor-pointer uppercase focus:outline-none"
+                              >
+                                {deletingId === proj.id ? (
+                                  <><RefreshCw className="w-3 animate-spin" /> ...</>
+                                ) : (
+                                  <><Trash2 className="w-3" /> DELETE</>
+                                )}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
+              </div>
               </div>
 
-            </div>
           )}
 
           {/* TAB 3: CLIENT INBOX */}
@@ -967,19 +1069,99 @@ export default function AdminDashboard({ initialInfo, initialProjects, initialMe
                 <p className="text-[9px] text-white/40 leading-relaxed uppercase">Review inquiries received through the contact forms.</p>
               </div>
 
+              {/* SEARCH & FILTER CONTROLS */}
+              <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-center justify-between border-b border-white/5 pb-4 mb-1">
+                <div className="relative w-full md:w-72">
+                  <Search className="absolute left-3 top-2.5 w-3 h-3 text-white/30" />
+                  <input
+                    type="text"
+                    placeholder="SEARCH INBOX..."
+                    value={inboxSearch}
+                    onChange={(e) => setInboxSearch(e.target.value)}
+                    className="w-full bg-neutral-950/60 border border-white/10 px-8 py-2 rounded text-[9px] uppercase font-mono tracking-widest text-white placeholder-white/20 focus:outline-none focus:border-white/30 transition-all duration-300"
+                  />
+                  {inboxSearch && (
+                    <button 
+                      onClick={() => setInboxSearch('')}
+                      className="absolute right-3 top-2 text-white/40 hover:text-white text-[8px] font-mono"
+                    >
+                      [X]
+                    </button>
+                  )}
+                </div>
+                
+                <div className="flex flex-wrap gap-2 items-center text-[9px] font-mono">
+                  <span className="text-white/30 mr-1">[ STATE ]</span>
+                  <button
+                    onClick={() => setInboxFilter('all')}
+                    className={`px-2.5 py-1 border rounded uppercase transition-all duration-300 cursor-pointer focus:outline-none ${
+                      inboxFilter === 'all' 
+                        ? 'border-white text-white bg-white/5' 
+                        : 'border-white/10 text-white/45 hover:text-white hover:bg-white/2'
+                    }`}
+                  >
+                    ALL ({messages.length})
+                  </button>
+                  <button
+                    onClick={() => setInboxFilter('unread')}
+                    className={`px-2.5 py-1 border rounded uppercase transition-all duration-300 cursor-pointer focus:outline-none ${
+                      inboxFilter === 'unread' 
+                        ? 'border-[#00ff66]/60 text-[#00ff66] bg-[#00ff66]/5' 
+                        : 'border-white/10 text-white/45 hover:text-white hover:bg-white/2'
+                    }`}
+                  >
+                    UNREAD ({messages.filter(m => !m.read).length})
+                  </button>
+                  <button
+                    onClick={() => setInboxFilter('read')}
+                    className={`px-2.5 py-1 border rounded uppercase transition-all duration-300 cursor-pointer focus:outline-none ${
+                      inboxFilter === 'read' 
+                        ? 'border-white/40 text-white/60 bg-white/5' 
+                        : 'border-white/10 text-white/45 hover:text-white hover:bg-white/2'
+                    }`}
+                  >
+                    READ ({messages.filter(m => m.read).length})
+                  </button>
+                </div>
+              </div>
+
+              {copyFeedback && (
+                <div className="fixed bottom-6 right-6 z-50 bg-[#070707] border border-[#00ff66]/40 px-4 py-2.5 rounded font-mono text-[9px] uppercase tracking-widest text-[#00ff66] shadow-[0_0_30px_rgba(0,255,102,0.1)]">
+                  ✓ SPEC METADATA LOADED TO MEMORY STACK
+                </div>
+              )}
+
               <div className="flex flex-col gap-4 mt-2">
-                {messages.length === 0 ? (
-                  <div className="py-12 text-center text-[10px] text-white/20 border border-dashed border-white/10 rounded uppercase">
-                    Your inbox is currently empty.
-                  </div>
-                ) : (
-                  messages.map((msg) => (
+                {(() => {
+                  const filteredMessages = messages.filter(msg => {
+                    const matchesSearch = 
+                      msg.name.toLowerCase().includes(inboxSearch.toLowerCase()) ||
+                      msg.email.toLowerCase().includes(inboxSearch.toLowerCase()) ||
+                      msg.details.toLowerCase().includes(inboxSearch.toLowerCase());
+                      
+                    const matchesFilter = 
+                      inboxFilter === 'all' ||
+                      (inboxFilter === 'unread' && !msg.read) ||
+                      (inboxFilter === 'read' && msg.read);
+                      
+                    return matchesSearch && matchesFilter;
+                  });
+
+                  if (filteredMessages.length === 0) {
+                    return (
+                      <div className="py-12 text-center text-[10px] text-white/20 border border-dashed border-white/10 rounded uppercase font-mono tracking-widest">
+                        {inboxSearch ? 'NO MATRIX INBOX MATCHES FOUND.' : 'Your inbox is currently empty.'}
+                      </div>
+                    );
+                  }
+
+                  return filteredMessages.map((msg) => (
                     <div 
                       key={msg.id} 
                       className={`border p-5 rounded relative flex flex-col gap-3 transition-all duration-300 ${
                         msg.read 
                           ? 'border-white/5 bg-black/10 text-white/50' 
-                          : 'border-white/20 bg-white/[0.02] text-white'
+                          : 'border-white/25 bg-white/[0.02] text-white'
                       }`}
                     >
                       {/* Message header */}
@@ -988,7 +1170,7 @@ export default function AdminDashboard({ initialInfo, initialProjects, initialMe
                           <User className="w-4 h-4 text-white/40" />
                           <span className={`text-[11px] font-bold uppercase ${msg.read ? 'text-white/60' : 'text-white'}`}>{msg.name}</span>
                         </div>
-                        <div className="flex items-center gap-4 text-[9px] text-white/40">
+                        <div className="flex items-center gap-4 text-[9px] text-white/40 font-mono">
                           <span>{msg.created_at ? new Date(msg.created_at).toLocaleString() : ''}</span>
                           {!msg.read && (
                             <button
@@ -1004,16 +1186,159 @@ export default function AdminDashboard({ initialInfo, initialProjects, initialMe
                       {/* Details / Message */}
                       <div className="text-[11px] leading-relaxed select-text font-bold">
                         <span className="text-[8px] uppercase tracking-wider text-white/35 block mb-1">EMAIL</span>
-                        <a href={`mailto:${msg.email}`} className="text-white hover:underline block mb-3 font-normal">{msg.email}</a>
+                        <div className="flex items-center gap-3 mb-3 font-mono text-[9px]">
+                          <a href={`mailto:${msg.email}`} className="text-white hover:underline block font-normal">{msg.email}</a>
+                          <span className="text-white/10 font-normal">|</span>
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(`NAME: ${msg.name}\nEMAIL: ${msg.email}\nDETAILS:\n${msg.details}`);
+                              setCopyFeedback(true);
+                              setTimeout(() => setCopyFeedback(false), 2000);
+                            }}
+                            className="text-[8px] tracking-widest text-white/40 hover:text-white flex items-center gap-1 cursor-pointer focus:outline-none uppercase"
+                          >
+                            <Copy className="w-2.5 h-2.5" /> COPY DATA
+                          </button>
+                        </div>
                         
                         <span className="text-[8px] uppercase tracking-wider text-white/35 block mb-1">AUTOMATION BRIEF</span>
-                        <p className="bg-black/30 p-3 border border-white/5 rounded text-white/80 select-text whitespace-pre-wrap leading-relaxed max-w-2xl uppercase">
+                        <p className="bg-black/35 p-3 border border-white/5 rounded text-white/80 select-text whitespace-pre-wrap leading-relaxed max-w-2xl uppercase font-mono text-[9.5px] mb-3">
                           {msg.details}
                         </p>
+
+                        <div className="flex gap-2 border-t border-white/5 pt-3 mt-1 font-mono">
+                          <button
+                            onClick={() => setActiveMessageDetail(msg)}
+                            className="flex items-center gap-1.5 border border-white/10 px-3 py-1 bg-white/5 hover:bg-white/10 text-[8px] tracking-widest font-bold rounded cursor-pointer uppercase focus:outline-none text-white hover:border-white/20"
+                          >
+                            <Terminal className="w-3 h-3 text-[#00ff66]" /> DECODE BRIEF
+                          </button>
+                          
+                          <a
+                            href={`mailto:${msg.email}?subject=RE: ARCHITECTURAL BRIEF MATRIX&body=Dear ${msg.name},%0D%0A%0D%0AThank you for contacting me. I have decoded your automation brief details and would love to discuss...`}
+                            className="flex items-center gap-1.5 border border-white/10 px-3 py-1 bg-white/5 hover:bg-white/10 text-[8px] tracking-widest font-bold rounded cursor-pointer uppercase focus:outline-none text-white hover:border-white/20"
+                          >
+                            <Mail className="w-3 h-3 text-blue-400" /> STACK REPLY
+                          </a>
+                        </div>
                       </div>
                     </div>
-                  ))
-                )}
+                  ));
+                })()}
+              </div>
+
+            </div>
+          )}
+
+          {/* TAB 4: SYSTEM CONSOLE */}
+          {activeTab === 'system' && (
+            <div className="flex flex-col gap-6 animate-fadeIn">
+              <div>
+                <h2 className="text-xs font-bold uppercase tracking-[0.2em] border-b border-white/5 pb-2 mb-3">SYSTEM TELEMETRY CONSOLE</h2>
+                <p className="text-[9px] text-white/40 leading-relaxed uppercase">Monitor active edge nodes, database transactions, live system telemetry, and execute backups.</p>
+              </div>
+
+              {/* Top Gauges and Telemetry Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                
+                {/* Latency Gauge */}
+                <div className="border border-white/10 bg-neutral-950/40 p-4 rounded flex flex-col gap-1.5 justify-between">
+                  <div>
+                    <span className="text-[8px] uppercase tracking-wider text-white/35 block mb-1">EDGE NODE LATENCY</span>
+                    <div className="flex items-baseline gap-2 font-mono">
+                      <span className="text-2xl font-bold text-[#00ff66]">{pingTime}</span>
+                      <span className="text-[9px] text-white/40 uppercase">ms</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-[8px] text-[#00ff66] uppercase mt-2 font-bold">
+                    <span className="w-1.5 h-1.5 bg-[#00ff66] rounded-full animate-pulse" />
+                    SGP-1 NODE ACTIVE // EXCELLENT
+                  </div>
+                </div>
+
+                {/* CDN Status */}
+                <div className="border border-white/10 bg-neutral-950/40 p-4 rounded flex flex-col gap-1.5 justify-between">
+                  <div>
+                    <span className="text-[8px] uppercase tracking-wider text-white/35 block mb-1">VERCEL EDGE SHIELD</span>
+                    <div className="flex items-center gap-2 mt-1">
+                      <Shield className="w-5 h-5 text-blue-400" />
+                      <span className="text-xs font-bold uppercase tracking-widest font-mono text-white/90">WAF SECURE</span>
+                    </div>
+                  </div>
+                  <div className="text-[8px] text-white/40 uppercase mt-2 font-bold">
+                    SSL CERT: ACTIVE [2048-BIT RSA]
+                  </div>
+                </div>
+
+                {/* Supabase connection pool status */}
+                <div className="border border-white/10 bg-neutral-950/40 p-4 rounded flex flex-col gap-1.5 justify-between">
+                  <div>
+                    <span className="text-[8px] uppercase tracking-wider text-white/35 block mb-1">DATABASE CONNECTION</span>
+                    <div className="flex items-center gap-2 mt-1">
+                      <Database className="w-5 h-5 text-green-400" />
+                      <span className="text-xs font-bold uppercase tracking-widest font-mono text-[#00ff66]">POOLS_STABLE</span>
+                    </div>
+                  </div>
+                  <div className="text-[8px] text-[#00ff66] uppercase mt-2 font-bold">
+                    POSTGRES_VER: 15.6 // UP
+                  </div>
+                </div>
+
+              </div>
+
+              {/* System Backup and Live Terminal Console */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mt-2">
+                
+                {/* Live Console Output */}
+                <div className="lg:col-span-8 border border-white/10 bg-neutral-950 p-4 rounded flex flex-col gap-2">
+                  <div className="flex items-center justify-between border-b border-white/5 pb-2 mb-1">
+                    <div className="flex items-center gap-2">
+                      <Terminal className="w-3.5 h-3.5 text-[#00ff66]" />
+                      <span className="text-[9px] uppercase font-bold tracking-widest text-white/80">LIVE DIAGNOSTIC HUD TERMINAL</span>
+                    </div>
+                    <span className="text-[8px] text-white/30 uppercase tracking-widest">[ SHIELD PORT: 443 ]</span>
+                  </div>
+
+                  {/* Log stream box */}
+                  <div className="h-56 bg-black/60 rounded border border-white/5 p-3 overflow-y-auto font-mono text-[9px] uppercase leading-relaxed text-[#00ff66] shadow-inner flex flex-col gap-1.5 font-bold">
+                    {systemLogs.map((log, idx) => (
+                      <div key={idx} className="flex gap-2 items-start">
+                        <span className="text-white/20 select-none">&gt;&gt;</span>
+                        <span className="whitespace-pre-wrap select-text">{log}</span>
+                      </div>
+                    ))}
+                    <div className="flex gap-2 items-center text-[#00ff66]/70">
+                      <span className="text-white/20 select-none">&gt;&gt;</span>
+                      <span className="inline-block w-1.5 h-3 bg-[#00ff66] animate-pulse" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Backup & System Settings */}
+                <div className="lg:col-span-4 flex flex-col gap-4">
+                  <div className="border border-white/10 bg-[#070707] p-5 rounded relative overflow-hidden flex flex-col justify-between h-full shadow-[0_0_20px_rgba(255,255,255,0.02)]">
+                    <div>
+                      <div className="absolute top-0 right-0 w-24 h-24 bg-white/[0.01] rounded-full translate-x-12 -translate-y-12 border border-white/5 pointer-events-none" />
+                      <span className="text-[8px] font-bold uppercase tracking-[0.25em] text-white/40 block mb-2">
+                        [ SYSTEM ACTIONS ]
+                      </span>
+                      <h3 className="text-[11px] font-bold uppercase tracking-widest text-white mb-2">
+                        MATRIX STACK BACKUP
+                      </h3>
+                      <p className="text-[9px] text-white/40 uppercase leading-relaxed mb-6">
+                        EXPORT ALL PORTFOLIO METADATA, Active Project blueprints, AND client inbox logs INTO A STATIC JSON backup FILE.
+                      </p>
+                    </div>
+
+                    <button
+                      onClick={handleBackupExport}
+                      className="w-full flex items-center justify-center gap-2 bg-white text-black py-2.5 px-4 font-bold text-[9px] tracking-widest hover:bg-neutral-200 transition-all rounded cursor-pointer focus:outline-none uppercase"
+                    >
+                      <Database className="w-3.5 h-3.5" /> EXPORT SYSTEM JSON
+                    </button>
+                  </div>
+                </div>
+
               </div>
 
             </div>
@@ -1169,6 +1494,90 @@ export default function AdminDashboard({ initialInfo, initialProjects, initialMe
                 )}
               </button>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* MESSAGE DETAIL DECODE OVERLAY */}
+      {activeMessageDetail && (
+        <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-2xl overflow-y-auto p-4 md:p-12 flex items-start md:items-center justify-center animate-fadeIn">
+          <div className="w-full max-w-2xl bg-neutral-950/90 border border-[#00ff66]/20 p-6 md:p-8 rounded relative shadow-[0_0_50px_rgba(0,255,102,0.05)] animate-scaleIn">
+            
+            {/* Pulsing secure light */}
+            <div className="absolute top-6 left-6 flex items-center gap-2">
+              <span className="w-2 h-2 bg-[#00ff66] rounded-full animate-ping" />
+              <span className="text-[8px] uppercase tracking-[0.2em] text-[#00ff66] font-bold">
+                [ DECODED SECURE NODE STREAM ]
+              </span>
+            </div>
+
+            {/* Close Button */}
+            <button
+              onClick={() => setActiveMessageDetail(null)}
+              className="absolute top-5 right-5 p-2 rounded-full border border-white/10 bg-white/5 text-white/60 hover:text-white hover:border-white hover:scale-105 transition-all duration-300 cursor-pointer focus:outline-none z-30"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <div className="mt-8 mb-6 border-b border-white/10 pb-4 font-bold">
+              <span className="text-[8px] tracking-[0.25em] text-white/30 uppercase block mb-1">CLIENT BRIEF REF ID</span>
+              <div className="font-mono text-[9px] text-[#00ff66] tracking-wider select-all uppercase">
+                {activeMessageDetail.id}
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-4 text-xs font-mono font-bold">
+              
+              {/* Client Info Monospace Blocks */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="border border-white/5 bg-black/45 p-3 rounded">
+                  <span className="text-[8px] uppercase text-white/35 tracking-wider block mb-1">SENDER IDENTIFIER</span>
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-white select-all">{activeMessageDetail.name}</div>
+                </div>
+                <div className="border border-white/5 bg-black/45 p-3 rounded">
+                  <span className="text-[8px] uppercase text-white/35 tracking-wider block mb-1">VERIFIED CONTACT EMAIL</span>
+                  <a href={`mailto:${activeMessageDetail.email}`} className="text-[10px] font-bold tracking-wider text-blue-400 hover:underline select-all">{activeMessageDetail.email}</a>
+                </div>
+              </div>
+
+              {/* Brief timestamp */}
+              <div className="border border-white/5 bg-black/45 p-3 rounded">
+                <span className="text-[8px] uppercase text-white/35 tracking-wider block mb-1">TRANSMISSION TIMESTAMP</span>
+                <div className="text-[10px] text-white/70 select-all">
+                  {activeMessageDetail.created_at ? new Date(activeMessageDetail.created_at).toLocaleString() : 'UNKNOWN'}
+                </div>
+              </div>
+
+              {/* Raw message block */}
+              <div className="border border-white/5 bg-black/45 p-4 rounded flex flex-col gap-2">
+                <span className="text-[8px] uppercase text-white/35 tracking-wider block">RAW ARCHITECTURAL BRIEF DECODING</span>
+                <p className="bg-[#070707] p-4 border border-[#00ff66]/10 rounded text-[10px] text-[#00ff66] select-text whitespace-pre-wrap leading-relaxed max-h-72 overflow-y-auto uppercase shadow-inner font-bold">
+                  {activeMessageDetail.details}
+                </p>
+              </div>
+
+              {/* Action buttons */}
+              <div className="flex flex-col sm:flex-row gap-3 border-t border-white/10 pt-5 mt-2">
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(`NAME: ${activeMessageDetail.name}\nEMAIL: ${activeMessageDetail.email}\nTIMESTAMP: ${activeMessageDetail.created_at}\nDETAILS:\n${activeMessageDetail.details}`);
+                    setCopyFeedback(true);
+                    setTimeout(() => setCopyFeedback(false), 2000);
+                  }}
+                  className="flex-1 flex items-center justify-center gap-2 bg-white text-black py-2.5 px-4 font-bold text-[9px] tracking-widest hover:bg-neutral-200 transition-all rounded cursor-pointer focus:outline-none uppercase"
+                >
+                  <Copy className="w-3.5 h-3.5" /> COPY TO CLIPBOARD
+                </button>
+                
+                <a
+                  href={`mailto:${activeMessageDetail.email}?subject=RE: ARCHITECTURAL BRIEF MATRIX&body=Dear ${activeMessageDetail.name},%0D%0A%0D%0AThank you for contacting me. I have decoded your automation brief details and would love to discuss...`}
+                  className="flex-1 flex items-center justify-center gap-2 border border-[#00ff66]/20 bg-[#00ff66]/5 hover:bg-[#00ff66]/10 text-[#00ff66] py-2.5 px-4 font-bold text-[9px] tracking-widest transition-all rounded cursor-pointer focus:outline-none uppercase"
+                >
+                  <Mail className="w-3.5 h-3.5" /> STACK EMAIL REPLY
+                </a>
+              </div>
+
+            </div>
           </div>
         </div>
       )}

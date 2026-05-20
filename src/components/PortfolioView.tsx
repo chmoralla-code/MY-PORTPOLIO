@@ -469,24 +469,10 @@ export default function PortfolioView({ initialInfo, initialProjects }: Portfoli
     }
   );
 
-  const [avatarUrl, setAvatarUrl] = useState('/profile.png');
-
-  useEffect(() => {
-    const checkAvatar = async () => {
-      const publicUrl = 'https://hzeqntoxqeylnglkgdnp.supabase.co/storage/v1/object/public/portfolio_images/profile_avatar.webp';
-      try {
-        const res = await fetch(publicUrl, { method: 'HEAD', cache: 'no-cache' });
-        if (res.ok) {
-          setAvatarUrl(`${publicUrl}?t=${Date.now()}`);
-        } else {
-          setAvatarUrl('/profile.png');
-        }
-      } catch (err) {
-        setAvatarUrl('/profile.png');
-      }
-    };
-    checkAvatar();
-  }, []);
+  const [avatarUrl, setAvatarUrl] = useState(() => {
+    const publicUrl = 'https://hzeqntoxqeylnglkgdnp.supabase.co/storage/v1/object/public/portfolio_images/profile_avatar.webp';
+    return `${publicUrl}?t=${Date.now()}`;
+  });
 
   // Pad to minimum of 5 columns to guarantee a spectacular full landscape layout showcase
   const [projects] = useState<Project[]>(() => {
@@ -1020,6 +1006,11 @@ export default function PortfolioView({ initialInfo, initialProjects }: Portfoli
                   <img
                     src={avatarUrl}
                     alt={info.hero_title}
+                    onError={() => {
+                      if (avatarUrl !== '/profile.png') {
+                        setAvatarUrl('/profile.png');
+                      }
+                    }}
                     className="w-full h-full object-cover grayscale contrast-125 scale-100 group-hover:scale-105 group-hover:grayscale-0 group-hover:contrast-110 transition-all duration-700 ease-out"
                   />
                   {/* Neon radial glow behind figure */}
