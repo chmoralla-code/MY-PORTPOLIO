@@ -100,7 +100,7 @@ class SonicEngine {
       this.ctx.resume();
     }
 
-    const targetGain = muted ? 0.0 : 0.085; // Amplified, rich background volume
+    const targetGain = muted ? 0.0 : 1.0; // 100% full background volume
     this.ambientGain.gain.setTargetAtTime(targetGain, this.ctx.currentTime, 1.5); // Warm slow fade-in
   }
 
@@ -249,6 +249,102 @@ class SonicEngine {
     }
   }
 }
+// ==========================================
+// HIGH-TECH MONOSPACE GLYPH SCRAMBLER
+// ==========================================
+interface InteractiveScrambleTextProps {
+  text: string;
+  className?: string;
+  scrambleColor?: string;
+  triggerOnHover?: boolean;
+}
+
+const InteractiveScrambleText: React.FC<InteractiveScrambleTextProps> = ({
+  text,
+  className = '',
+  scrambleColor = 'text-[#00ff66]',
+  triggerOnHover = true
+}) => {
+  const [displayText, setDisplayText] = useState(text);
+  const [isScrambling, setIsScrambling] = useState(false);
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789#@$%&*()_+=-{}[]|:;<>?,./';
+  const frameRef = useRef<number | null>(null);
+
+  const startScramble = () => {
+    if (isScrambling) return;
+    setIsScrambling(true);
+
+    const length = text.length;
+    let frame = 0;
+    const maxFrames = 20; // 330ms scramble cycle at 60fps
+    const resolvedIndices = new Set<number>();
+
+    const tick = () => {
+      frame++;
+      
+      const progress = frame / maxFrames;
+      const charsToResolve = Math.floor(progress * length);
+
+      while (resolvedIndices.size < charsToResolve && resolvedIndices.size < length) {
+        const randomIndex = Math.floor(Math.random() * length);
+        resolvedIndices.add(randomIndex);
+      }
+
+      const result = text.split('').map((char, index) => {
+        if (char === ' ' || char === '/' || char === ':' || char === '-' || char === '.' || char === '°') {
+          return char; // Keep layout structure stable
+        }
+        if (resolvedIndices.has(index)) {
+          return char;
+        }
+        return chars[Math.floor(Math.random() * chars.length)];
+      });
+
+      setDisplayText(result.join(''));
+
+      if (frame < maxFrames) {
+        frameRef.current = requestAnimationFrame(tick);
+      } else {
+        setDisplayText(text);
+        setIsScrambling(false);
+      }
+    };
+
+    frameRef.current = requestAnimationFrame(tick);
+  };
+
+  useEffect(() => {
+    startScramble();
+    return () => {
+      if (frameRef.current) cancelAnimationFrame(frameRef.current);
+    };
+  }, [text]);
+
+  const handleMouseEnter = () => {
+    if (triggerOnHover) {
+      startScramble();
+    }
+  };
+
+  return (
+    <span 
+      className={`inline-block ${className}`}
+      onMouseEnter={handleMouseEnter}
+    >
+      {displayText.split('').map((char, index) => {
+        const isResolved = char === text[index];
+        return (
+          <span 
+            key={index} 
+            className={!isResolved ? scrambleColor : ''}
+          >
+            {char}
+          </span>
+        );
+      })}
+    </span>
+  );
+};
 
 export default function PortfolioView({ initialInfo, initialProjects }: PortfolioViewProps) {
   const lenis = useLenis();
@@ -514,16 +610,6 @@ export default function PortfolioView({ initialInfo, initialProjects }: Portfoli
     return () => window.removeEventListener('scroll', handleScroll);
   }, [activeSection]);
 
-  const toggleSound = () => {
-    const nextMuted = !isMuted;
-    setIsMuted(nextMuted);
-    audio.current?.setMuted(nextMuted);
-    audio.current?.click();
-    if (!nextMuted) {
-      triggerVoiceIntro();
-    }
-  };
-
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -654,18 +740,12 @@ export default function PortfolioView({ initialInfo, initialProjects }: Portfoli
             onClick={() => scrollToPanel(0)}
             className="font-bold text-[10px] md:text-xs uppercase tracking-[0.15em] md:tracking-[0.35em] text-white/80 hover:text-white transition-colors duration-300 focus:outline-none"
           >
-            CYRHIEL MORALLA
+            <InteractiveScrambleText text="CYRHIEL MORALLA" scrambleColor="text-white" />
           </button>
         </div>
         
-        {/* Sound toggle & Let's talk */}
+        {/* Let's talk CTA only */}
         <div className="pointer-events-auto flex items-center gap-2 md:gap-4">
-          <button
-            onClick={toggleSound}
-            className="text-[8px] md:text-[9px] font-bold uppercase tracking-wider md:tracking-widest px-2.5 py-1.5 md:px-4 md:py-2 rounded border border-white/10 bg-black/40 hover:bg-white/5 hover:border-white/30 text-white/60 hover:text-white transition-all duration-300 flex items-center gap-1 md:gap-2 cursor-pointer focus:outline-none"
-          >
-            {isMuted ? <><VolumeX className="w-3 h-3 md:w-3.5 md:h-3.5" /> MUTED</> : <><Volume2 className="w-3 h-3 md:w-3.5 md:h-3.5 animate-pulse" /> SONIC</>}
-          </button>
           <button
             onClick={() => { audio.current?.click(); setIsContactOpen(true); }}
             className="text-[8px] md:text-xs font-bold uppercase tracking-wider md:tracking-widest px-3 py-2 md:px-5 md:py-2.5 rounded-full border border-white/20 bg-black/40 hover:bg-white hover:text-black hover:border-white hover:scale-105 transition-all duration-500 flex items-center gap-1 md:gap-2 cursor-pointer focus:outline-none"
@@ -736,10 +816,10 @@ export default function PortfolioView({ initialInfo, initialProjects }: Portfoli
                 [ THE LIVING DIGITAL WORKSPACE ]
               </span>
               <h1 className="text-3xl md:text-5xl lg:text-6xl font-light leading-none tracking-wide text-white uppercase select-text pr-2 block mb-6 font-sans">
-                CYRHIEL MORALLA
+                <InteractiveScrambleText text="CYRHIEL MORALLA" scrambleColor="text-[#00ff66]" />
               </h1>
               <span className="text-white/60 text-[10px] tracking-[0.25em] uppercase mb-6 block font-bold font-mono">
-                // FRESH GRADUATE // LIVING ARCHITECTURE
+                <InteractiveScrambleText text="// FRESH GRADUATE // LIVING ARCHITECTURE" scrambleColor="text-white" />
               </span>
               <p className="text-xs md:text-sm text-white/55 tracking-wider uppercase leading-relaxed max-w-2xl mb-12 select-text font-mono">
                 {info.poetry || info.hero_subtitle}
@@ -828,7 +908,7 @@ export default function PortfolioView({ initialInfo, initialProjects }: Portfoli
                 [ INDEX 01 // SELECTED BLUEPRINTS ]
               </span>
               <h2 className="text-xl md:text-3xl font-light tracking-wide text-white uppercase font-sans">
-                LIVING ARCHITECTURE SPECIFICATIONS
+                <InteractiveScrambleText text="LIVING ARCHITECTURE SPECIFICATIONS" scrambleColor="text-[#00ff66]" />
               </h2>
             </div>
             <div className="text-[9px] text-white/35 font-mono uppercase tracking-[0.2em] text-left md:text-right">
@@ -946,7 +1026,7 @@ export default function PortfolioView({ initialInfo, initialProjects }: Portfoli
                 [ LET'S WORK TOGETHER ]
               </span>
               <h3 className="text-lg md:text-xl font-light uppercase tracking-widest text-white font-sans">
-                START AN AUTOMATION
+                <InteractiveScrambleText text="START AN AUTOMATION" scrambleColor="text-[#00ff66]" />
               </h3>
             </div>
 
@@ -1059,7 +1139,7 @@ export default function PortfolioView({ initialInfo, initialProjects }: Portfoli
                 </div>
 
                 <h3 className="text-xl md:text-4xl font-light tracking-wide text-white uppercase mb-6 md:mb-8 leading-snug font-sans">
-                  {selectedProject.title}
+                  <InteractiveScrambleText text={selectedProject.title} scrambleColor="text-[#00ff66]" />
                 </h3>
 
                 <p className="text-xs md:text-sm tracking-wider text-white/70 leading-relaxed mb-6 md:mb-8 uppercase font-mono max-w-lg">
