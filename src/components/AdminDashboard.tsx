@@ -225,6 +225,7 @@ export default function AdminDashboard({ initialInfo, initialProjects, initialMe
   const [dragActive, setDragActive] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
   const [uploadError, setUploadError] = useState('');
+  const [showUploadForm, setShowUploadForm] = useState(false);
 
   // Edit Project states
   const [editingProject, setEditingProject] = useState<Project | null>(null);
@@ -399,7 +400,10 @@ export default function AdminDashboard({ initialInfo, initialProjects, initialMe
       });
       setSelectedFile(null);
       setUploadStatus('success');
-      setTimeout(() => setUploadStatus('idle'), 2500);
+      setTimeout(() => {
+        setUploadStatus('idle');
+        setShowUploadForm(false);
+      }, 1800);
     } catch (err: any) {
       console.error('Project upload error:', err);
       setUploadStatus('error');
@@ -839,174 +843,194 @@ export default function AdminDashboard({ initialInfo, initialProjects, initialMe
           {activeTab === 'gallery' && (
             <div className="flex flex-col gap-8">
               
-              {/* Media Uploader Form */}
-              <div className="border-b border-white/10 pb-6">
-                <h2 className="text-xs font-bold uppercase tracking-[0.2em] mb-1">UPLOAD NEW PROJECT</h2>
-                <p className="text-[9px] text-white/40 uppercase mb-4">Upload images (PNG, JPG, WebP) or videos (MP4, WebM) from your local computer.</p>
-                
-                <form onSubmit={handleProjectSubmit} className="grid grid-cols-1 lg:grid-cols-12 gap-6 text-xs">
-                  
-                  {/* Drag & Drop Zone */}
-                  <div className="lg:col-span-7">
-                    <div
-                      onDragEnter={handleDrag}
-                      onDragOver={handleDrag}
-                      onDragLeave={handleDrag}
-                      onDrop={handleDrop}
-                      className={`w-full h-full min-h-[220px] rounded border border-dashed flex flex-col items-center justify-center p-6 text-center transition-all duration-300 ${
-                        dragActive ? 'border-[#00ff66] bg-[#00ff66]/5' : 'border-white/10 bg-white/[0.01] hover:border-white/20'
-                      } relative overflow-hidden group`}
-                    >
-                      {selectedFile ? (
-                        <div className="w-full h-full flex flex-col items-center gap-3 relative z-10 p-2">
-                          {/* Live preview container */}
-                          <div className="relative w-full max-w-[280px] aspect-[16/10] rounded overflow-hidden border border-white/20 bg-black/40 group-hover:border-white/40 transition-colors duration-300 shadow-lg">
-                            {selectedFile.type.startsWith('video/') ? (
-                              <video 
-                                src={selectedPreview || undefined} 
-                                controls 
-                                muted 
-                                className="w-full h-full object-cover" 
-                              />
-                            ) : (
-                              <img 
-                                src={selectedPreview || undefined} 
-                                alt="Selected preview" 
-                                className="w-full h-full object-cover" 
-                              />
-                            )}
-                            {/* Neon scan overlay for sci-fi vibe */}
-                            <div className="absolute inset-0 pointer-events-none border border-white/10 bg-radial-gradient from-transparent to-black/40 mix-blend-overlay" />
-                          </div>
-                          
-                          <div className="flex flex-col items-center gap-1">
-                            <div className="px-2.5 py-1 rounded bg-[#00ff66]/10 border border-[#00ff66]/30 text-[#00ff66] font-mono font-bold uppercase tracking-widest text-[8px] flex items-center gap-1.5 animate-pulse">
-                              {selectedFile.type.startsWith('video/') ? <><Film className="w-2.5 h-2.5" /> VIDEO READY</> : <><Camera className="w-2.5 h-2.5" /> IMAGE READY</>}
-                            </div>
-                            <span className="font-bold text-[9px] text-white/90 truncate max-w-[250px] uppercase tracking-wider font-mono mt-1">{selectedFile.name}</span>
-                            <span className="text-[8px] text-white/40 font-mono uppercase">SIZE: {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB</span>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => setSelectedFile(null)}
-                            className="text-[8px] tracking-widest text-red-400 hover:text-red-300 font-bold font-mono uppercase cursor-pointer focus:outline-none hover:scale-105 transition-all mt-1"
-                          >
-                            [ DISCARD MEDIA ]
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="flex flex-col items-center gap-2">
-                          <UploadCloud className="w-8 h-8 text-white/20 mb-1 group-hover:text-[#00ff66]/50 transition-colors duration-300" />
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-white/60">Drag & Drop media here</span>
-                          <span className="text-[9px] text-white/35 uppercase">Images (WebP/AVIF/PNG/JPG) or Videos (MP4/WebM)</span>
-                          <label className="mt-3 cursor-pointer px-4 py-2 border border-white/10 bg-white/5 rounded text-[9px] tracking-widest uppercase hover:bg-white/10 hover:border-white/30 transition-all duration-300 focus:outline-none font-bold">
-                            BROWSE FILES
-                            <input
-                              type="file"
-                              accept="image/*,video/*"
-                              className="hidden"
-                              onChange={handleFileSelect}
-                            />
-                          </label>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Metadata fields */}
-                  <div className="lg:col-span-5 flex flex-col gap-3">
-                    <input
-                      type="text"
-                      placeholder="PROJECT TITLE"
-                      value={projectData.title}
-                      onChange={(e) => setProjectData(prev => ({ ...prev, title: e.target.value }))}
-                      required
-                      className="bg-white/5 border border-white/10 rounded px-3 py-2.5 text-white focus:outline-none focus:border-[#00ff66]/50 focus:shadow-[0_0_10px_rgba(0,255,102,0.05)] text-xs transition-all duration-300 uppercase font-mono tracking-wider"
-                    />
-                    <input
-                      type="text"
-                      placeholder="CLIENT / TARGET"
-                      value={projectData.client}
-                      onChange={(e) => setProjectData(prev => ({ ...prev, client: e.target.value }))}
-                      required
-                      className="bg-white/5 border border-white/10 rounded px-3 py-2.5 text-white focus:outline-none focus:border-[#00ff66]/50 focus:shadow-[0_0_10px_rgba(0,255,102,0.05)] text-xs transition-all duration-300 uppercase font-mono tracking-wider"
-                    />
-                    <input
-                      type="number"
-                      placeholder="YEAR"
-                      value={projectData.year}
-                      onChange={(e) => setProjectData(prev => ({ ...prev, year: parseInt(e.target.value) || new Date().getFullYear() }))}
-                      required
-                      className="bg-white/5 border border-white/10 rounded px-3 py-2.5 text-white focus:outline-none focus:border-[#00ff66]/50 focus:shadow-[0_0_10px_rgba(0,255,102,0.05)] text-xs transition-all duration-300 font-mono tracking-wider"
-                    />
-                    <textarea
-                      placeholder="SHORT TECHNICAL DESCRIPTION"
-                      rows={2}
-                      value={projectData.description}
-                      onChange={(e) => setProjectData(prev => ({ ...prev, description: e.target.value }))}
-                      required
-                      className="bg-white/5 border border-white/10 rounded px-3 py-2 text-white focus:outline-none focus:border-[#00ff66]/50 focus:shadow-[0_0_10px_rgba(0,255,102,0.05)] text-xs transition-all duration-300 resize-none uppercase font-mono tracking-wider"
-                    />
-                    <input
-                      type="text"
-                      placeholder="SCALE (e.g., 1:1, 1:250)"
-                      value={projectData.scale}
-                      onChange={(e) => setProjectData(prev => ({ ...prev, scale: e.target.value }))}
-                      className="bg-white/5 border border-white/10 rounded px-3 py-2.5 text-white focus:outline-none focus:border-[#00ff66]/50 focus:shadow-[0_0_10px_rgba(0,255,102,0.05)] text-xs transition-all duration-300 uppercase font-mono tracking-wider"
-                    />
-                    <input
-                      type="text"
-                      placeholder="LOCATION (e.g., TAGBILARAN CITY)"
-                      value={projectData.location}
-                      onChange={(e) => setProjectData(prev => ({ ...prev, location: e.target.value }))}
-                      className="bg-white/5 border border-white/10 rounded px-3 py-2.5 text-white focus:outline-none focus:border-[#00ff66]/50 focus:shadow-[0_0_10px_rgba(0,255,102,0.05)] text-xs transition-all duration-300 uppercase font-mono tracking-wider"
-                    />
-                    <input
-                      type="text"
-                      placeholder="MATERIALS MATRIX (e.g., CARBON, GLASS, STEEL)"
-                      value={projectData.materials}
-                      onChange={(e) => setProjectData(prev => ({ ...prev, materials: e.target.value }))}
-                      className="bg-white/5 border border-white/10 rounded px-3 py-2.5 text-white focus:outline-none focus:border-[#00ff66]/50 focus:shadow-[0_0_10px_rgba(0,255,102,0.05)] text-xs transition-all duration-300 uppercase font-mono tracking-wider"
-                    />
-
-                    {/* Detailed Specifications Column */}
-                    <div className="grid grid-cols-2 gap-2">
-                      <input
-                        type="text"
-                        placeholder="DENSITY (e.g., 2400 kg/m³)"
-                        value={projectData.density}
-                        onChange={(e) => setProjectData(prev => ({ ...prev, density: e.target.value }))}
-                        className="bg-white/5 border border-white/10 rounded px-3 py-2.5 text-white focus:outline-none focus:border-[#00ff66]/50 focus:shadow-[0_0_10px_rgba(0,255,102,0.05)] text-xs transition-all duration-300 uppercase font-mono tracking-wider"
-                      />
-                      <input
-                        type="text"
-                        placeholder="THERMAL (e.g., R-value: 0.12)"
-                        value={projectData.thermal}
-                        onChange={(e) => setProjectData(prev => ({ ...prev, thermal: e.target.value }))}
-                        className="bg-white/5 border border-white/10 rounded px-3 py-2.5 text-white focus:outline-none focus:border-[#00ff66]/50 focus:shadow-[0_0_10px_rgba(0,255,102,0.05)] text-xs transition-all duration-300 uppercase font-mono tracking-wider"
-                      />
-                    </div>
-
-                    {uploadStatus === 'error' && (
-                      <span className="text-[9px] text-red-400 font-bold uppercase font-mono">{uploadError}</span>
-                    )}
-
-                    <button
-                      type="submit"
-                      disabled={uploadStatus === 'uploading'}
-                      className="w-full py-3 bg-white text-black font-bold tracking-widest text-[10px] rounded hover:bg-neutral-200 transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer uppercase focus:outline-none font-mono"
-                    >
-                      {uploadStatus === 'uploading' ? (
-                        <><RefreshCw className="w-3 animate-spin" /> UPLOADING TO BUCKET...</>
-                      ) : uploadStatus === 'success' ? (
-                        <><CheckCircle className="w-3 text-green-600" /> UPLOADED SUCCESSFULLY</>
-                      ) : (
-                        <><Plus className="w-3" /> ADD TO GALLERY</>
-                      )}
-                    </button>
-                  </div>
-                </form>
+              {/* Media Uploader Form Header & Toggle */}
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-white/10 pb-6 gap-4">
+                <div>
+                  <h2 className="text-xs font-bold uppercase tracking-[0.2em] mb-1">PROJECT GALLERY</h2>
+                  <p className="text-[9px] text-white/40 uppercase">MANAGE AND SHOWCASE YOUR ARCHITECTURAL BLUEPRINTS MATRIX.</p>
                 </div>
+                <button
+                  onClick={() => setShowUploadForm(!showUploadForm)}
+                  className={`text-[9px] md:text-xs uppercase tracking-widest flex items-center justify-center gap-2 px-4 py-2 rounded border transition-all duration-300 cursor-pointer focus:outline-none font-bold font-mono ${
+                    showUploadForm 
+                      ? 'border-red-500/30 text-red-400 bg-red-500/5 hover:bg-red-500/10' 
+                      : 'border-[#00ff66]/30 bg-[#00ff66]/5 text-[#00ff66] hover:bg-[#00ff66]/10'
+                  }`}
+                >
+                  {showUploadForm ? '[ CLOSE UPLOADER ]' : '[ + ADD NEW PROJECT ]'}
+                </button>
+              </div>
+
+              {/* Media Uploader Form */}
+              {showUploadForm && (
+                <div className="border-b border-white/10 pb-6 animate-fadeIn">
+                  <h2 className="text-xs font-bold uppercase tracking-[0.2em] mb-1 text-[#00ff66]">UPLOAD NEW PROJECT</h2>
+                  <p className="text-[9px] text-white/40 uppercase mb-4">Upload images (PNG, JPG, WebP) or videos (MP4, WebM) from your local computer.</p>
+                  
+                  <form onSubmit={handleProjectSubmit} className="grid grid-cols-1 lg:grid-cols-12 gap-6 text-xs">
+                    
+                    {/* Drag & Drop Zone */}
+                    <div className="lg:col-span-7">
+                      <div
+                        onDragEnter={handleDrag}
+                        onDragOver={handleDrag}
+                        onDragLeave={handleDrag}
+                        onDrop={handleDrop}
+                        className={`w-full h-full min-h-[220px] rounded border border-dashed flex flex-col items-center justify-center p-6 text-center transition-all duration-300 ${
+                          dragActive ? 'border-[#00ff66] bg-[#00ff66]/5' : 'border-white/10 bg-white/[0.01] hover:border-white/20'
+                        } relative overflow-hidden group`}
+                      >
+                        {selectedFile ? (
+                          <div className="w-full h-full flex flex-col items-center gap-3 relative z-10 p-2">
+                            {/* Live preview container */}
+                            <div className="relative w-full max-w-[280px] aspect-[16/10] rounded overflow-hidden border border-white/20 bg-black/40 group-hover:border-white/40 transition-colors duration-300 shadow-lg">
+                              {selectedFile.type.startsWith('video/') ? (
+                                <video 
+                                  src={selectedPreview || undefined} 
+                                  controls 
+                                  muted 
+                                  className="w-full h-full object-cover" 
+                                />
+                              ) : (
+                                <img 
+                                  src={selectedPreview || undefined} 
+                                  alt="Selected preview" 
+                                  className="w-full h-full object-cover" 
+                                />
+                              )}
+                              {/* Neon scan overlay for sci-fi vibe */}
+                              <div className="absolute inset-0 pointer-events-none border border-white/10 bg-radial-gradient from-transparent to-black/40 mix-blend-overlay" />
+                            </div>
+                            
+                            <div className="flex flex-col items-center gap-1">
+                              <div className="px-2.5 py-1 rounded bg-[#00ff66]/10 border border-[#00ff66]/30 text-[#00ff66] font-mono font-bold uppercase tracking-widest text-[8px] flex items-center gap-1.5 animate-pulse">
+                                {selectedFile.type.startsWith('video/') ? <><Film className="w-2.5 h-2.5" /> VIDEO READY</> : <><Camera className="w-2.5 h-2.5" /> IMAGE READY</>}
+                              </div>
+                              <span className="font-bold text-[9px] text-white/90 truncate max-w-[250px] uppercase tracking-wider font-mono mt-1">{selectedFile.name}</span>
+                              <span className="text-[8px] text-white/40 font-mono uppercase">SIZE: {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB</span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setSelectedFile(null)}
+                              className="text-[8px] tracking-widest text-red-400 hover:text-red-300 font-bold font-mono uppercase cursor-pointer focus:outline-none hover:scale-105 transition-all mt-1"
+                            >
+                              [ DISCARD MEDIA ]
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex flex-col items-center gap-2">
+                            <UploadCloud className="w-8 h-8 text-white/20 mb-1 group-hover:text-[#00ff66]/50 transition-colors duration-300" />
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-white/60">Drag & Drop media here</span>
+                            <span className="text-[9px] text-white/35 uppercase">Images (WebP/AVIF/PNG/JPG) or Videos (MP4/WebM)</span>
+                            <label className="mt-3 cursor-pointer px-4 py-2 border border-white/10 bg-white/5 rounded text-[9px] tracking-widest uppercase hover:bg-white/10 hover:border-white/30 transition-all duration-300 focus:outline-none font-bold">
+                              BROWSE FILES
+                              <input
+                                type="file"
+                                accept="image/*,video/*"
+                                className="hidden"
+                                onChange={handleFileSelect}
+                              />
+                            </label>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Metadata fields */}
+                    <div className="lg:col-span-5 flex flex-col gap-3">
+                      <input
+                        type="text"
+                        placeholder="PROJECT TITLE"
+                        value={projectData.title}
+                        onChange={(e) => setProjectData(prev => ({ ...prev, title: e.target.value }))}
+                        required
+                        className="bg-white/5 border border-white/10 rounded px-3 py-2.5 text-white focus:outline-none focus:border-[#00ff66]/50 focus:shadow-[0_0_10px_rgba(0,255,102,0.05)] text-xs transition-all duration-300 uppercase font-mono tracking-wider"
+                      />
+                      <input
+                        type="text"
+                        placeholder="CLIENT / TARGET"
+                        value={projectData.client}
+                        onChange={(e) => setProjectData(prev => ({ ...prev, client: e.target.value }))}
+                        required
+                        className="bg-white/5 border border-white/10 rounded px-3 py-2.5 text-white focus:outline-none focus:border-[#00ff66]/50 focus:shadow-[0_0_10px_rgba(0,255,102,0.05)] text-xs transition-all duration-300 uppercase font-mono tracking-wider"
+                      />
+                      <input
+                        type="number"
+                        placeholder="YEAR"
+                        value={projectData.year}
+                        onChange={(e) => setProjectData(prev => ({ ...prev, year: parseInt(e.target.value) || new Date().getFullYear() }))}
+                        required
+                        className="bg-white/5 border border-white/10 rounded px-3 py-2.5 text-white focus:outline-none focus:border-[#00ff66]/50 focus:shadow-[0_0_10px_rgba(0,255,102,0.05)] text-xs transition-all duration-300 font-mono tracking-wider"
+                      />
+                      <textarea
+                        placeholder="SHORT TECHNICAL DESCRIPTION"
+                        rows={2}
+                        value={projectData.description}
+                        onChange={(e) => setProjectData(prev => ({ ...prev, description: e.target.value }))}
+                        required
+                        className="bg-white/5 border border-white/10 rounded px-3 py-2 text-white focus:outline-none focus:border-[#00ff66]/50 focus:shadow-[0_0_10px_rgba(0,255,102,0.05)] text-xs transition-all duration-300 resize-none uppercase font-mono tracking-wider"
+                      />
+                      <input
+                        type="text"
+                        placeholder="SCALE (e.g., 1:1, 1:250)"
+                        value={projectData.scale}
+                        onChange={(e) => setProjectData(prev => ({ ...prev, scale: e.target.value }))}
+                        className="bg-white/5 border border-white/10 rounded px-3 py-2.5 text-white focus:outline-none focus:border-[#00ff66]/50 focus:shadow-[0_0_10px_rgba(0,255,102,0.05)] text-xs transition-all duration-300 uppercase font-mono tracking-wider"
+                      />
+                      <input
+                        type="text"
+                        placeholder="LOCATION (e.g., TAGBILARAN CITY)"
+                        value={projectData.location}
+                        onChange={(e) => setProjectData(prev => ({ ...prev, location: e.target.value }))}
+                        className="bg-white/5 border border-white/10 rounded px-3 py-2.5 text-white focus:outline-none focus:border-[#00ff66]/50 focus:shadow-[0_0_10px_rgba(0,255,102,0.05)] text-xs transition-all duration-300 uppercase font-mono tracking-wider"
+                      />
+                      <input
+                        type="text"
+                        placeholder="MATERIALS MATRIX (e.g., CARBON, GLASS, STEEL)"
+                        value={projectData.materials}
+                        onChange={(e) => setProjectData(prev => ({ ...prev, materials: e.target.value }))}
+                        className="bg-white/5 border border-white/10 rounded px-3 py-2.5 text-white focus:outline-none focus:border-[#00ff66]/50 focus:shadow-[0_0_10px_rgba(0,255,102,0.05)] text-xs transition-all duration-300 uppercase font-mono tracking-wider"
+                      />
+
+                      {/* Detailed Specifications Column */}
+                      <div className="grid grid-cols-2 gap-2">
+                        <input
+                          type="text"
+                          placeholder="DENSITY (e.g., 2400 kg/m³)"
+                          value={projectData.density}
+                          onChange={(e) => setProjectData(prev => ({ ...prev, density: e.target.value }))}
+                          className="bg-white/5 border border-white/10 rounded px-3 py-2.5 text-white focus:outline-none focus:border-[#00ff66]/50 focus:shadow-[0_0_10px_rgba(0,255,102,0.05)] text-xs transition-all duration-300 uppercase font-mono tracking-wider"
+                        />
+                        <input
+                          type="text"
+                          placeholder="THERMAL (e.g., R-value: 0.12)"
+                          value={projectData.thermal}
+                          onChange={(e) => setProjectData(prev => ({ ...prev, thermal: e.target.value }))}
+                          className="bg-white/5 border border-white/10 rounded px-3 py-2.5 text-white focus:outline-none focus:border-[#00ff66]/50 focus:shadow-[0_0_10px_rgba(0,255,102,0.05)] text-xs transition-all duration-300 uppercase font-mono tracking-wider"
+                        />
+                      </div>
+
+                      {uploadStatus === 'error' && (
+                        <span className="text-[9px] text-red-400 font-bold uppercase font-mono">{uploadError}</span>
+                      )}
+
+                      <button
+                        type="submit"
+                        disabled={uploadStatus === 'uploading'}
+                        className="w-full py-3 bg-white text-black font-bold tracking-widest text-[10px] rounded hover:bg-neutral-200 transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer uppercase focus:outline-none font-mono"
+                      >
+                        {uploadStatus === 'uploading' ? (
+                          <><RefreshCw className="w-3 animate-spin" /> UPLOADING TO BUCKET...</>
+                        ) : uploadStatus === 'success' ? (
+                          <><CheckCircle className="w-3 text-green-600" /> UPLOADED SUCCESSFULLY</>
+                        ) : (
+                          <><Plus className="w-3" /> ADD NEW PROJECT</>
+                        )}
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              )}
                  {/* Grid Preview, Edit, and Delete */}
               <div>
                 <div className="flex flex-col md:flex-row gap-4 items-center justify-between border-b border-white/5 pb-4 mb-5">
