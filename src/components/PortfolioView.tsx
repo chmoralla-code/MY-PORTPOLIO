@@ -100,7 +100,7 @@ class SonicEngine {
       this.ctx.resume();
     }
 
-    const targetGain = muted ? 0.0 : 0.038; // Rich background volume (smoothly controlled)
+    const targetGain = muted ? 0.0 : 0.085; // Amplified, rich background volume
     this.ambientGain.gain.setTargetAtTime(targetGain, this.ctx.currentTime, 1.5); // Warm slow fade-in
   }
 
@@ -166,11 +166,52 @@ class SonicEngine {
     osc.start();
     osc.stop(this.ctx.currentTime + 0.4);
   }
+
+  // Deep, theatrical Godly Voice Synthesis announcement
+  public speakIntro() {
+    if (typeof window === 'undefined' || !window.speechSynthesis) return;
+    
+    // Cancel any active speech to avoid overlaps
+    window.speechSynthesis.cancel();
+    
+    let spoken = false;
+    const speak = () => {
+      if (spoken) return;
+      spoken = true;
+      const utterance = new SpeechSynthesisUtterance("HELLO IM CYRHIEL MORALLA, FRESH GRADUATE");
+      const voices = window.speechSynthesis.getVoices();
+      
+      // Select deep English male voice if possible, otherwise fallback gracefully
+      const selectedVoice = voices.find(v => v.name.toLowerCase().includes('david')) || 
+                            voices.find(v => v.name.toLowerCase().includes('google uk english male')) ||
+                            voices.find(v => v.lang.includes('en') && v.name.toLowerCase().includes('male')) ||
+                            voices.find(v => v.lang.includes('en')) || 
+                            voices[0];
+      
+      if (selectedVoice) utterance.voice = selectedVoice;
+      
+      utterance.pitch = 0.35; // Deep/Godly pitch
+      utterance.rate = 0.72;  // Slow/cinematic tempo
+      utterance.volume = 1.0;
+      
+      window.speechSynthesis.speak(utterance);
+    };
+
+    if (window.speechSynthesis.getVoices().length === 0) {
+      window.speechSynthesis.onvoiceschanged = () => {
+        speak();
+        window.speechSynthesis.onvoiceschanged = null; // Clean up handler
+      };
+    } else {
+      speak();
+    }
+  }
 }
 
 export default function PortfolioView({ initialInfo, initialProjects }: PortfolioViewProps) {
   const lenis = useLenis();
   const audio = useRef<SonicEngine | null>(null);
+  const hasSpoken = useRef(false);
 
   // States
   const [info] = useState<PortfolioInfo>(
@@ -286,10 +327,61 @@ export default function PortfolioView({ initialInfo, initialProjects }: Portfoli
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const showcaseRef = useRef<HTMLDivElement>(null);
 
-  // 1. Initialize Audio Engine
+  const triggerVoiceIntro = () => {
+    if (hasSpoken.current) return;
+    hasSpoken.current = true;
+    audio.current?.speakIntro();
+  };
+
+  // 1. Initialize Audio Engine & Setup Autoplay First Gesture Listeners
   useEffect(() => {
     audio.current = new SonicEngine();
-  }, []);
+
+    const handleFirstInteraction = () => {
+      if (audio.current && isMuted) {
+        setIsMuted(false);
+        audio.current.setMuted(false);
+        
+        // If the loading screen has finished, speak immediately.
+        // If it is still loading, it will speak when loading completes (hooked below).
+        if (!isLoading) {
+          setTimeout(() => {
+            triggerVoiceIntro();
+          }, 350);
+        }
+      }
+      cleanup();
+    };
+
+    const cleanup = () => {
+      window.removeEventListener('click', handleFirstInteraction);
+      window.removeEventListener('keydown', handleFirstInteraction);
+      window.removeEventListener('touchstart', handleFirstInteraction);
+      window.removeEventListener('pointerdown', handleFirstInteraction);
+      window.removeEventListener('scroll', handleFirstInteraction);
+    };
+
+    window.addEventListener('click', handleFirstInteraction);
+    window.addEventListener('keydown', handleFirstInteraction);
+    window.addEventListener('touchstart', handleFirstInteraction);
+    window.addEventListener('pointerdown', handleFirstInteraction);
+    window.addEventListener('scroll', handleFirstInteraction);
+
+    return () => {
+      cleanup();
+    };
+  }, [isLoading, isMuted]);
+
+  // Trigger Deep Godly Voice when loader has finished and audio is unmuted
+  useEffect(() => {
+    if (!isLoading && !isMuted) {
+      // Delay slightly after loader finish for maximum cinematic dramatic timing
+      const timer = setTimeout(() => {
+        triggerVoiceIntro();
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [isLoading, isMuted]);
 
   // 2. Kinetic Loading Sequence (High speed coordinates ticking)
   useEffect(() => {
@@ -374,6 +466,9 @@ export default function PortfolioView({ initialInfo, initialProjects }: Portfoli
     setIsMuted(nextMuted);
     audio.current?.setMuted(nextMuted);
     audio.current?.click();
+    if (!nextMuted) {
+      triggerVoiceIntro();
+    }
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
