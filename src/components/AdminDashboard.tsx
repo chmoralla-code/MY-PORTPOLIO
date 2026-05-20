@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
   FileText, Image as ImageIcon, Inbox, LogOut, Save, Plus, 
@@ -234,6 +234,30 @@ export default function AdminDashboard({ initialInfo, initialProjects, initialMe
   const [editFile, setEditFile] = useState<File | null>(null);
   const [editStatus, setEditStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
   const [editError, setEditError] = useState('');
+
+  // Live media preview states
+  const [selectedPreview, setSelectedPreview] = useState<string | null>(null);
+  const [editPreview, setEditPreview] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!selectedFile) {
+      setSelectedPreview(null);
+      return;
+    }
+    const objectUrl = URL.createObjectURL(selectedFile);
+    setSelectedPreview(objectUrl);
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [selectedFile]);
+
+  useEffect(() => {
+    if (!editFile) {
+      setEditPreview(null);
+      return;
+    }
+    const objectUrl = URL.createObjectURL(editFile);
+    setEditPreview(objectUrl);
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [editFile]);
 
   // Delete project states
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -829,31 +853,53 @@ export default function AdminDashboard({ initialInfo, initialProjects, initialMe
                       onDragOver={handleDrag}
                       onDragLeave={handleDrag}
                       onDrop={handleDrop}
-                      className={`w-full h-full min-h-[180px] rounded border border-dashed flex flex-col items-center justify-center p-6 text-center transition-all duration-300 ${
-                        dragActive ? 'border-white bg-white/5' : 'border-white/10 bg-white/[0.01]'
-                      } relative overflow-hidden`}
+                      className={`w-full h-full min-h-[220px] rounded border border-dashed flex flex-col items-center justify-center p-6 text-center transition-all duration-300 ${
+                        dragActive ? 'border-[#00ff66] bg-[#00ff66]/5' : 'border-white/10 bg-white/[0.01] hover:border-white/20'
+                      } relative overflow-hidden group`}
                     >
                       {selectedFile ? (
-                        <div className="flex flex-col items-center gap-3">
-                          <div className="px-3 py-1.5 rounded bg-white/5 border border-white/10 font-bold uppercase tracking-widest text-[9px] flex items-center gap-2">
-                            {selectedFile.type.startsWith('video/') ? <><Film className="w-3 h-3" /> VIDEO</> : <><Camera className="w-3 h-3" /> IMAGE</>}
+                        <div className="w-full h-full flex flex-col items-center gap-3 relative z-10 p-2">
+                          {/* Live preview container */}
+                          <div className="relative w-full max-w-[280px] aspect-[16/10] rounded overflow-hidden border border-white/20 bg-black/40 group-hover:border-white/40 transition-colors duration-300 shadow-lg">
+                            {selectedFile.type.startsWith('video/') ? (
+                              <video 
+                                src={selectedPreview || undefined} 
+                                controls 
+                                muted 
+                                className="w-full h-full object-cover" 
+                              />
+                            ) : (
+                              <img 
+                                src={selectedPreview || undefined} 
+                                alt="Selected preview" 
+                                className="w-full h-full object-cover" 
+                              />
+                            )}
+                            {/* Neon scan overlay for sci-fi vibe */}
+                            <div className="absolute inset-0 pointer-events-none border border-white/10 bg-radial-gradient from-transparent to-black/40 mix-blend-overlay" />
                           </div>
-                          <span className="font-bold text-[10px] text-white/90 truncate max-w-[220px]">{selectedFile.name}</span>
-                          <span className="text-[9px] text-white/40">{(selectedFile.size / (1024 * 1024)).toFixed(2)} MB</span>
+                          
+                          <div className="flex flex-col items-center gap-1">
+                            <div className="px-2.5 py-1 rounded bg-[#00ff66]/10 border border-[#00ff66]/30 text-[#00ff66] font-mono font-bold uppercase tracking-widest text-[8px] flex items-center gap-1.5 animate-pulse">
+                              {selectedFile.type.startsWith('video/') ? <><Film className="w-2.5 h-2.5" /> VIDEO READY</> : <><Camera className="w-2.5 h-2.5" /> IMAGE READY</>}
+                            </div>
+                            <span className="font-bold text-[9px] text-white/90 truncate max-w-[250px] uppercase tracking-wider font-mono mt-1">{selectedFile.name}</span>
+                            <span className="text-[8px] text-white/40 font-mono uppercase">SIZE: {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB</span>
+                          </div>
                           <button
                             type="button"
                             onClick={() => setSelectedFile(null)}
-                            className="mt-2 text-[9px] tracking-widest text-red-400 hover:text-red-300 uppercase cursor-pointer focus:outline-none"
+                            className="text-[8px] tracking-widest text-red-400 hover:text-red-300 font-bold font-mono uppercase cursor-pointer focus:outline-none hover:scale-105 transition-all mt-1"
                           >
-                            Remove File
+                            [ DISCARD MEDIA ]
                           </button>
                         </div>
                       ) : (
                         <div className="flex flex-col items-center gap-2">
-                          <UploadCloud className="w-8 h-8 text-white/20 mb-1" />
+                          <UploadCloud className="w-8 h-8 text-white/20 mb-1 group-hover:text-[#00ff66]/50 transition-colors duration-300" />
                           <span className="text-[10px] font-bold uppercase tracking-wider text-white/60">Drag & Drop media here</span>
                           <span className="text-[9px] text-white/35 uppercase">Images (WebP/AVIF/PNG/JPG) or Videos (MP4/WebM)</span>
-                          <label className="mt-3 cursor-pointer px-4 py-2 border border-white/10 bg-white/5 rounded text-[9px] tracking-widest uppercase hover:bg-white/10 transition-all duration-300 focus:outline-none">
+                          <label className="mt-3 cursor-pointer px-4 py-2 border border-white/10 bg-white/5 rounded text-[9px] tracking-widest uppercase hover:bg-white/10 hover:border-white/30 transition-all duration-300 focus:outline-none font-bold">
                             BROWSE FILES
                             <input
                               type="file"
@@ -875,7 +921,7 @@ export default function AdminDashboard({ initialInfo, initialProjects, initialMe
                       value={projectData.title}
                       onChange={(e) => setProjectData(prev => ({ ...prev, title: e.target.value }))}
                       required
-                      className="bg-white/5 border border-white/10 rounded px-3 py-2.5 text-white focus:outline-none focus:border-white uppercase text-xs"
+                      className="bg-white/5 border border-white/10 rounded px-3 py-2.5 text-white focus:outline-none focus:border-[#00ff66]/50 focus:shadow-[0_0_10px_rgba(0,255,102,0.05)] text-xs transition-all duration-300 uppercase font-mono tracking-wider"
                     />
                     <input
                       type="text"
@@ -883,7 +929,7 @@ export default function AdminDashboard({ initialInfo, initialProjects, initialMe
                       value={projectData.client}
                       onChange={(e) => setProjectData(prev => ({ ...prev, client: e.target.value }))}
                       required
-                      className="bg-white/5 border border-white/10 rounded px-3 py-2.5 text-white focus:outline-none focus:border-white uppercase text-xs"
+                      className="bg-white/5 border border-white/10 rounded px-3 py-2.5 text-white focus:outline-none focus:border-[#00ff66]/50 focus:shadow-[0_0_10px_rgba(0,255,102,0.05)] text-xs transition-all duration-300 uppercase font-mono tracking-wider"
                     />
                     <input
                       type="number"
@@ -891,7 +937,7 @@ export default function AdminDashboard({ initialInfo, initialProjects, initialMe
                       value={projectData.year}
                       onChange={(e) => setProjectData(prev => ({ ...prev, year: parseInt(e.target.value) || new Date().getFullYear() }))}
                       required
-                      className="bg-white/5 border border-white/10 rounded px-3 py-2.5 text-white focus:outline-none focus:border-white text-xs"
+                      className="bg-white/5 border border-white/10 rounded px-3 py-2.5 text-white focus:outline-none focus:border-[#00ff66]/50 focus:shadow-[0_0_10px_rgba(0,255,102,0.05)] text-xs transition-all duration-300 font-mono tracking-wider"
                     />
                     <textarea
                       placeholder="SHORT TECHNICAL DESCRIPTION"
@@ -899,38 +945,56 @@ export default function AdminDashboard({ initialInfo, initialProjects, initialMe
                       value={projectData.description}
                       onChange={(e) => setProjectData(prev => ({ ...prev, description: e.target.value }))}
                       required
-                      className="bg-white/5 border border-white/10 rounded px-3 py-2 text-white focus:outline-none focus:border-white resize-none text-xs uppercase"
+                      className="bg-white/5 border border-white/10 rounded px-3 py-2 text-white focus:outline-none focus:border-[#00ff66]/50 focus:shadow-[0_0_10px_rgba(0,255,102,0.05)] text-xs transition-all duration-300 resize-none uppercase font-mono tracking-wider"
                     />
                     <input
                       type="text"
                       placeholder="SCALE (e.g., 1:1, 1:250)"
                       value={projectData.scale}
                       onChange={(e) => setProjectData(prev => ({ ...prev, scale: e.target.value }))}
-                      className="bg-white/5 border border-white/10 rounded px-3 py-2.5 text-white focus:outline-none focus:border-white uppercase text-xs"
+                      className="bg-white/5 border border-white/10 rounded px-3 py-2.5 text-white focus:outline-none focus:border-[#00ff66]/50 focus:shadow-[0_0_10px_rgba(0,255,102,0.05)] text-xs transition-all duration-300 uppercase font-mono tracking-wider"
                     />
                     <input
                       type="text"
                       placeholder="LOCATION (e.g., TAGBILARAN CITY)"
                       value={projectData.location}
                       onChange={(e) => setProjectData(prev => ({ ...prev, location: e.target.value }))}
-                      className="bg-white/5 border border-white/10 rounded px-3 py-2.5 text-white focus:outline-none focus:border-white uppercase text-xs"
+                      className="bg-white/5 border border-white/10 rounded px-3 py-2.5 text-white focus:outline-none focus:border-[#00ff66]/50 focus:shadow-[0_0_10px_rgba(0,255,102,0.05)] text-xs transition-all duration-300 uppercase font-mono tracking-wider"
                     />
                     <input
                       type="text"
                       placeholder="MATERIALS MATRIX (e.g., CARBON, GLASS, STEEL)"
                       value={projectData.materials}
                       onChange={(e) => setProjectData(prev => ({ ...prev, materials: e.target.value }))}
-                      className="bg-white/5 border border-white/10 rounded px-3 py-2.5 text-white focus:outline-none focus:border-white uppercase text-xs"
+                      className="bg-white/5 border border-white/10 rounded px-3 py-2.5 text-white focus:outline-none focus:border-[#00ff66]/50 focus:shadow-[0_0_10px_rgba(0,255,102,0.05)] text-xs transition-all duration-300 uppercase font-mono tracking-wider"
                     />
 
+                    {/* Detailed Specifications Column */}
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        type="text"
+                        placeholder="DENSITY (e.g., 2400 kg/m³)"
+                        value={projectData.density}
+                        onChange={(e) => setProjectData(prev => ({ ...prev, density: e.target.value }))}
+                        className="bg-white/5 border border-white/10 rounded px-3 py-2.5 text-white focus:outline-none focus:border-[#00ff66]/50 focus:shadow-[0_0_10px_rgba(0,255,102,0.05)] text-xs transition-all duration-300 uppercase font-mono tracking-wider"
+                      />
+                      <input
+                        type="text"
+                        placeholder="THERMAL (e.g., R-value: 0.12)"
+                        value={projectData.thermal}
+                        onChange={(e) => setProjectData(prev => ({ ...prev, thermal: e.target.value }))}
+                        className="bg-white/5 border border-white/10 rounded px-3 py-2.5 text-white focus:outline-none focus:border-[#00ff66]/50 focus:shadow-[0_0_10px_rgba(0,255,102,0.05)] text-xs transition-all duration-300 uppercase font-mono tracking-wider"
+                      />
+                    </div>
+
                     {uploadStatus === 'error' && (
-                      <span className="text-[9px] text-red-400 font-bold uppercase">{uploadError}</span>
+                      <span className="text-[9px] text-red-400 font-bold uppercase font-mono">{uploadError}</span>
                     )}
 
                     <button
                       type="submit"
                       disabled={uploadStatus === 'uploading'}
-                      className="w-full py-3 bg-white text-black font-bold tracking-widest text-[10px] rounded hover:bg-neutral-200 transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer uppercase focus:outline-none"
+                      className="w-full py-3 bg-white text-black font-bold tracking-widest text-[10px] rounded hover:bg-neutral-200 transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer uppercase focus:outline-none font-mono"
                     >
                       {uploadStatus === 'uploading' ? (
                         <><RefreshCw className="w-3 animate-spin" /> UPLOADING TO BUCKET...</>
@@ -1350,149 +1414,254 @@ export default function AdminDashboard({ initialInfo, initialProjects, initialMe
       {/* FULL-SCREEN EDIT PROJECT OVERLAY */}
       {editingProject && (
         <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-2xl overflow-y-auto p-4 md:p-12 flex items-start md:items-center justify-center animate-fadeIn">
-          <div className="w-full max-w-3xl bg-neutral-950/90 border border-white/10 p-6 md:p-10 rounded relative shadow-2xl">
+          <div className="w-full max-w-4xl bg-neutral-950/95 border border-[#00ff66]/20 p-6 md:p-10 rounded relative shadow-[0_0_50px_rgba(0,255,102,0.05)] animate-scaleIn">
+            
+            {/* Pulsing secure light / telemetry header */}
+            <div className="absolute top-6 left-6 flex items-center gap-2">
+              <span className="w-1.5 h-1.5 bg-[#00ff66] rounded-full animate-ping" />
+              <span className="text-[8px] uppercase tracking-[0.2em] text-[#00ff66] font-bold font-mono">
+                [ BLUEPRINT DECODER // SPECIFICATION EDITOR ]
+              </span>
+            </div>
+
             {/* Close Button */}
             <button
               onClick={() => { setEditingProject(null); setEditStatus('idle'); }}
-              className="absolute top-5 right-5 p-2 rounded-full border border-white/10 bg-white/5 text-white/60 hover:text-white hover:border-white hover:scale-105 transition-all duration-300 cursor-pointer focus:outline-none z-30"
+              className="absolute top-5 right-5 p-2 rounded-full border border-white/10 bg-white/5 text-white/60 hover:text-white hover:border-[#00ff66]/40 hover:bg-[#00ff66]/5 hover:scale-105 transition-all duration-300 cursor-pointer focus:outline-none z-30"
             >
               <X className="w-4 h-4" />
             </button>
 
-            <div className="mb-6">
-              <span className="text-[9px] tracking-[0.3em] text-white/40 uppercase block mb-1">[ EDIT PROJECT ]</span>
-              <h3 className="text-sm font-bold uppercase tracking-widest text-white">{editingProject.title}</h3>
+            <div className="mt-8 mb-6 border-b border-white/10 pb-4">
+              <span className="text-[8px] tracking-[0.25em] text-white/30 uppercase block mb-1">PROJECT BLUEPRINT METADATA REGISTRATION</span>
+              <h3 className="text-sm font-bold uppercase tracking-widest text-[#00ff66] font-mono">{editingProject.title}</h3>
             </div>
 
-            <form onSubmit={handleEditSubmit} className="flex flex-col gap-4 text-xs">
-              {/* Current & Replacement Media */}
-              <div className="border border-white/10 bg-black/30 rounded p-4 flex flex-col md:flex-row gap-6 items-center">
-                <div className="w-32 h-24 rounded overflow-hidden border border-white/10 bg-[#111] flex-shrink-0">
-                  {editingProject.media_type === 'video' ? (
-                    <video src={editingProject.image_url} muted playsInline className="w-full h-full object-cover" />
-                  ) : (
-                    <img src={editingProject.image_url} alt="Current" className="w-full h-full object-cover" />
-                  )}
-                </div>
-                <div className="flex-1 flex flex-col gap-2 w-full">
-                  <label className="text-[9px] uppercase text-white/55 tracking-wider font-bold">
-                    [ REPLACE MEDIA — UPLOAD NEW IMAGE OR VIDEO ]
-                  </label>
-                  <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
-                    <input
-                      type="file"
-                      accept="image/*,video/*"
-                      id="edit-file-input"
-                      className="hidden"
-                      onChange={handleEditFileSelect}
-                    />
-                    <label
-                      htmlFor="edit-file-input"
-                      className="cursor-pointer border border-white/20 bg-white/5 hover:bg-white/10 transition px-4 py-2 text-center rounded text-[9px] uppercase font-bold tracking-widest flex items-center justify-center gap-2"
-                    >
-                      <UploadCloud className="w-3.5 h-3.5" /> BROWSE REPLACEMENT
-                    </label>
+            <form onSubmit={handleEditSubmit} className="flex flex-col gap-6 text-xs">
+              
+              {/* Current & Replacement Media - Split Layout */}
+              <div className="border border-white/10 bg-neutral-950/60 rounded p-5 flex flex-col gap-4">
+                <span className="text-[8px] uppercase text-white/35 tracking-wider block font-bold font-mono">
+                  [ MEDIA REPLACEMENT FLOW: CURRENT ACTIVE VS. TARGET REPLACEMENT ]
+                </span>
+                
+                <div className="grid grid-cols-1 md:grid-cols-7 gap-4 items-center">
+                  {/* Current Media */}
+                  <div className="md:col-span-3 flex flex-col gap-2">
+                    <span className="text-[8px] uppercase text-white/40 font-mono tracking-widest text-center">[ CURRENT ACTIVE BLUEPRINT ]</span>
+                    <div className="w-full aspect-[16/10] rounded overflow-hidden border border-white/10 bg-[#111] relative">
+                      {editingProject.media_type === 'video' ? (
+                        <video src={editingProject.image_url} muted playsInline controls className="w-full h-full object-cover" />
+                      ) : (
+                        <img src={editingProject.image_url} alt="Current" className="w-full h-full object-cover" />
+                      )}
+                    </div>
                   </div>
-                  {editFile && (
-                    <span className="text-[8px] text-green-400 uppercase font-mono block mt-1 flex items-center gap-2">
-                      {editFile.type.startsWith('video/') ? <Film className="w-3 h-3" /> : <Camera className="w-3 h-3" />}
-                      NEW: {editFile.name} ({(editFile.size / (1024 * 1024)).toFixed(2)} MB)
-                    </span>
-                  )}
-                  {!editFile && (
-                    <span className="text-[8px] text-white/30 uppercase font-mono block mt-1">
-                      LEAVE EMPTY TO KEEP CURRENT {editingProject.media_type.toUpperCase()}
-                    </span>
-                  )}
+
+                  {/* Flow Arrow */}
+                  <div className="md:col-span-1 flex flex-col items-center justify-center text-[#00ff66]/40 font-bold text-lg py-2">
+                    <span className="hidden md:inline text-xl">→</span>
+                    <span className="inline md:hidden text-xl">↓</span>
+                  </div>
+
+                  {/* Target Replacement Media */}
+                  <div className="md:col-span-3 flex flex-col gap-2">
+                    <span className="text-[8px] uppercase text-[#00ff66] font-mono tracking-widest text-center">[ TARGET REPLACEMENT DECODER ]</span>
+                    <div className="w-full aspect-[16/10] rounded overflow-hidden border border-dashed border-[#00ff66]/20 bg-black/40 relative flex items-center justify-center text-center">
+                      {editFile ? (
+                        editFile.type.startsWith('video/') ? (
+                          <video src={editPreview || undefined} muted playsInline controls className="w-full h-full object-cover" />
+                        ) : (
+                          <img src={editPreview || undefined} alt="New Preview" className="w-full h-full object-cover" />
+                        )
+                      ) : (
+                        <div className="flex flex-col items-center justify-center p-4">
+                          <Camera className="w-5 h-5 text-white/10 mb-1" />
+                          <span className="text-[8px] uppercase text-white/30 tracking-widest font-mono">NO REPLACEMENT FILE SELECTED</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* File Upload Selector Action Row */}
+                <div className="flex flex-col gap-2 border-t border-white/5 pt-4 mt-1">
+                  <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="file"
+                        accept="image/*,video/*"
+                        id="edit-file-input"
+                        className="hidden"
+                        onChange={handleEditFileSelect}
+                      />
+                      <label
+                        htmlFor="edit-file-input"
+                        className="cursor-pointer border border-[#00ff66]/30 bg-[#00ff66]/5 hover:bg-[#00ff66]/10 text-[#00ff66] transition px-4 py-2 text-center rounded text-[9px] uppercase font-bold tracking-widest flex items-center justify-center gap-2 hover:border-[#00ff66]/50 focus:outline-none font-mono"
+                      >
+                        <UploadCloud className="w-3.5 h-3.5" /> BROWSE REPLACEMENT FILE
+                      </label>
+
+                      {editFile && (
+                        <button
+                          type="button"
+                          onClick={() => setEditFile(null)}
+                          className="text-[8px] tracking-widest text-red-400 hover:text-red-300 font-bold font-mono uppercase cursor-pointer focus:outline-none px-2 py-1 hover:scale-105 transition-all"
+                        >
+                          [ DISCARD REPLACEMENT ]
+                        </button>
+                      )}
+                    </div>
+                    
+                    {editFile ? (
+                      <span className="text-[8px] text-[#00ff66] uppercase font-mono tracking-wider flex items-center gap-1.5 animate-pulse font-bold">
+                        {editFile.type.startsWith('video/') ? <Film className="w-3 h-3" /> : <Camera className="w-3 h-3" />}
+                        READY: {editFile.name} ({(editFile.size / (1024 * 1024)).toFixed(2)} MB)
+                      </span>
+                    ) : (
+                      <span className="text-[8px] text-white/30 uppercase font-mono tracking-wider">
+                        LEAVE EMPTY TO PRESERVE CURRENT {editingProject.media_type.toUpperCase()}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
 
-              {/* Edit Fields */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div className="flex flex-col gap-1">
-                  <label className="text-[9px] uppercase text-white/50 tracking-wider font-bold">TITLE</label>
-                  <input
-                    type="text"
-                    value={editData.title}
-                    onChange={(e) => setEditData(prev => ({ ...prev, title: e.target.value }))}
-                    className="bg-white/5 border border-white/10 rounded px-3 py-2.5 text-white focus:outline-none focus:border-white uppercase text-xs"
+              {/* Edit Fields Form Block */}
+              <div className="flex flex-col gap-4">
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[9px] uppercase text-white/50 tracking-wider font-bold font-mono">PROJECT TITLE</label>
+                    <input
+                      type="text"
+                      value={editData.title}
+                      onChange={(e) => setEditData(prev => ({ ...prev, title: e.target.value }))}
+                      required
+                      className="bg-white/5 border border-white/10 rounded px-3 py-2.5 text-white focus:outline-none focus:border-[#00ff66]/50 focus:shadow-[0_0_10px_rgba(0,255,102,0.05)] uppercase text-xs transition-all duration-300 font-mono tracking-wider"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[9px] uppercase text-white/50 tracking-wider font-bold font-mono">CLIENT / OWNER</label>
+                    <input
+                      type="text"
+                      value={editData.client}
+                      onChange={(e) => setEditData(prev => ({ ...prev, client: e.target.value }))}
+                      required
+                      className="bg-white/5 border border-white/10 rounded px-3 py-2.5 text-white focus:outline-none focus:border-[#00ff66]/50 focus:shadow-[0_0_10px_rgba(0,255,102,0.05)] uppercase text-xs transition-all duration-300 font-mono tracking-wider"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[9px] uppercase text-white/50 tracking-wider font-bold font-mono">YEAR</label>
+                    <input
+                      type="number"
+                      value={editData.year}
+                      onChange={(e) => setEditData(prev => ({ ...prev, year: parseInt(e.target.value) || 2026 }))}
+                      required
+                      className="bg-white/5 border border-white/10 rounded px-3 py-2.5 text-white focus:outline-none focus:border-[#00ff66]/50 focus:shadow-[0_0_10px_rgba(0,255,102,0.05)] text-xs transition-all duration-300 font-mono tracking-wider"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[9px] uppercase text-white/50 tracking-wider font-bold font-mono">SCALE REPRESENTATION</label>
+                    <input
+                      type="text"
+                      value={editData.scale}
+                      onChange={(e) => setEditData(prev => ({ ...prev, scale: e.target.value }))}
+                      className="bg-white/5 border border-white/10 rounded px-3 py-2.5 text-white focus:outline-none focus:border-[#00ff66]/50 focus:shadow-[0_0_10px_rgba(0,255,102,0.05)] uppercase text-xs transition-all duration-300 font-mono tracking-wider"
+                      placeholder="e.g., 1:1 OR 1:250"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[9px] uppercase text-white/50 tracking-wider font-bold font-mono">LOCATION CODES</label>
+                    <input
+                      type="text"
+                      value={editData.location}
+                      onChange={(e) => setEditData(prev => ({ ...prev, location: e.target.value }))}
+                      className="bg-white/5 border border-white/10 rounded px-3 py-2.5 text-white focus:outline-none focus:border-[#00ff66]/50 focus:shadow-[0_0_10px_rgba(0,255,102,0.05)] uppercase text-xs transition-all duration-300 font-mono tracking-wider"
+                      placeholder="e.g., TAGBILARAN CITY"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[9px] uppercase text-white/50 tracking-wider font-bold font-mono">TECHNICAL BRIEF / DESCRIPTION</label>
+                  <textarea
+                    rows={3}
+                    value={editData.description}
+                    onChange={(e) => setEditData(prev => ({ ...prev, description: e.target.value }))}
+                    required
+                    className="bg-white/5 border border-white/10 rounded px-3 py-2.5 text-white focus:outline-none focus:border-[#00ff66]/50 focus:shadow-[0_0_10px_rgba(0,255,102,0.05)] resize-none text-xs uppercase transition-all duration-300 font-mono leading-relaxed"
                   />
                 </div>
-                <div className="flex flex-col gap-1">
-                  <label className="text-[9px] uppercase text-white/50 tracking-wider font-bold">CLIENT</label>
-                  <input
-                    type="text"
-                    value={editData.client}
-                    onChange={(e) => setEditData(prev => ({ ...prev, client: e.target.value }))}
-                    className="bg-white/5 border border-white/10 rounded px-3 py-2.5 text-white focus:outline-none focus:border-white uppercase text-xs"
-                  />
+
+                {/* Advanced Structural Metrics Group */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[9px] uppercase text-white/50 tracking-wider font-bold font-mono">MATERIALS COMPOSITION</label>
+                    <input
+                      type="text"
+                      value={editData.materials}
+                      onChange={(e) => setEditData(prev => ({ ...prev, materials: e.target.value }))}
+                      className="bg-white/5 border border-white/10 rounded px-3 py-2.5 text-white focus:outline-none focus:border-[#00ff66]/50 focus:shadow-[0_0_10px_rgba(0,255,102,0.05)] uppercase text-xs transition-all duration-300 font-mono tracking-wider"
+                      placeholder="e.g., CONCRETE, BAMBOO, COCOSHELL"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[9px] uppercase text-white/50 tracking-wider font-bold font-mono">STRUCTURAL DENSITY</label>
+                    <input
+                      type="text"
+                      value={editData.density}
+                      onChange={(e) => setEditData(prev => ({ ...prev, density: e.target.value }))}
+                      className="bg-white/5 border border-white/10 rounded px-3 py-2.5 text-white focus:outline-none focus:border-[#00ff66]/50 focus:shadow-[0_0_10px_rgba(0,255,102,0.05)] uppercase text-xs transition-all duration-300 font-mono tracking-wider"
+                      placeholder="e.g., 2400 kg/m³"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[9px] uppercase text-white/50 tracking-wider font-bold font-mono">THERMAL RESISTANCE</label>
+                    <input
+                      type="text"
+                      value={editData.thermal}
+                      onChange={(e) => setEditData(prev => ({ ...prev, thermal: e.target.value }))}
+                      className="bg-white/5 border border-white/10 rounded px-3 py-2.5 text-white focus:outline-none focus:border-[#00ff66]/50 focus:shadow-[0_0_10px_rgba(0,255,102,0.05)] uppercase text-xs transition-all duration-300 font-mono tracking-wider"
+                      placeholder="e.g., R-value: 0.12 m²·K/W"
+                    />
+                  </div>
                 </div>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <div className="flex flex-col gap-1">
-                  <label className="text-[9px] uppercase text-white/50 tracking-wider font-bold">YEAR</label>
-                  <input
-                    type="number"
-                    value={editData.year}
-                    onChange={(e) => setEditData(prev => ({ ...prev, year: parseInt(e.target.value) || 2026 }))}
-                    className="bg-white/5 border border-white/10 rounded px-3 py-2.5 text-white focus:outline-none focus:border-white text-xs"
-                  />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label className="text-[9px] uppercase text-white/50 tracking-wider font-bold">SCALE</label>
-                  <input
-                    type="text"
-                    value={editData.scale}
-                    onChange={(e) => setEditData(prev => ({ ...prev, scale: e.target.value }))}
-                    className="bg-white/5 border border-white/10 rounded px-3 py-2.5 text-white focus:outline-none focus:border-white uppercase text-xs"
-                  />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label className="text-[9px] uppercase text-white/50 tracking-wider font-bold">LOCATION</label>
-                  <input
-                    type="text"
-                    value={editData.location}
-                    onChange={(e) => setEditData(prev => ({ ...prev, location: e.target.value }))}
-                    className="bg-white/5 border border-white/10 rounded px-3 py-2.5 text-white focus:outline-none focus:border-white uppercase text-xs"
-                  />
-                </div>
-              </div>
-              <div className="flex flex-col gap-1">
-                <label className="text-[9px] uppercase text-white/50 tracking-wider font-bold">DESCRIPTION</label>
-                <textarea
-                  rows={3}
-                  value={editData.description}
-                  onChange={(e) => setEditData(prev => ({ ...prev, description: e.target.value }))}
-                  className="bg-white/5 border border-white/10 rounded px-3 py-2 text-white focus:outline-none focus:border-white resize-none text-xs uppercase"
-                />
-              </div>
-              <div className="flex flex-col gap-1">
-                <label className="text-[9px] uppercase text-white/50 tracking-wider font-bold">MATERIALS</label>
-                <input
-                  type="text"
-                  value={editData.materials}
-                  onChange={(e) => setEditData(prev => ({ ...prev, materials: e.target.value }))}
-                  className="bg-white/5 border border-white/10 rounded px-3 py-2.5 text-white focus:outline-none focus:border-white uppercase text-xs"
-                />
+
               </div>
 
               {editStatus === 'error' && (
-                <span className="text-[9px] text-red-400 font-bold uppercase">{editError}</span>
+                <span className="text-[9px] text-red-400 font-bold uppercase font-mono">{editError}</span>
               )}
 
-              <button
-                type="submit"
-                disabled={editStatus === 'saving'}
-                className="w-full flex items-center justify-center gap-2 mt-2 bg-white text-black py-3 px-4 font-bold tracking-widest hover:bg-neutral-200 transition-all rounded disabled:bg-neutral-600 disabled:text-neutral-400 cursor-pointer focus:outline-none uppercase"
-              >
-                {editStatus === 'saving' ? (
-                  <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> SAVING CHANGES...</>
-                ) : editStatus === 'success' ? (
-                  <><CheckCircle className="w-3.5 h-3.5 text-green-600" /> PROJECT UPDATED</>
-                ) : (
-                  <><Save className="w-3.5 h-3.5" /> SAVE PROJECT CHANGES</>
-                )}
-              </button>
+              {/* Submit Buttons */}
+              <div className="flex gap-4 border-t border-white/10 pt-5 mt-2">
+                <button
+                  type="button"
+                  onClick={() => { setEditingProject(null); setEditStatus('idle'); }}
+                  className="flex-1 border border-white/10 hover:border-white/20 text-white/70 hover:text-white py-3 px-4 font-bold tracking-widest text-[9px] hover:bg-white/5 transition-all duration-300 rounded cursor-pointer focus:outline-none uppercase font-mono"
+                >
+                  DISCARD CHANGES
+                </button>
+                
+                <button
+                  type="submit"
+                  disabled={editStatus === 'saving'}
+                  className="flex-[2] flex items-center justify-center gap-2 bg-[#00ff66] text-black hover:bg-[#00ff66]/90 py-3 px-4 font-bold tracking-widest text-[9px] transition-all duration-300 rounded disabled:bg-neutral-600 disabled:text-neutral-400 cursor-pointer focus:outline-none uppercase font-mono"
+                >
+                  {editStatus === 'saving' ? (
+                    <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> DISPATCHING METADATA AMENDMENTS...</>
+                  ) : editStatus === 'success' ? (
+                    <><CheckCircle className="w-3.5 h-3.5 text-green-700 font-black" /> BLUEPRINT RE-REGISTERED SUCCESSFULLY</>
+                  ) : (
+                    <><Save className="w-3.5 h-3.5" /> COMMIT METADATA AMENDMENTS</>
+                  )}
+                </button>
+              </div>
+
             </form>
           </div>
         </div>
