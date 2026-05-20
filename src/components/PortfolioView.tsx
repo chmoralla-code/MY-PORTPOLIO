@@ -17,8 +17,9 @@ interface PortfolioViewProps {
 // ==========================================
 class SonicEngine {
   private ctx: AudioContext | null = null;
-  private ambientOsc: OscillatorNode | null = null;
   private ambientGain: GainNode | null = null;
+  private voices: Array<{ osc: OscillatorNode; gain: GainNode }> = [];
+  private lfo: OscillatorNode | null = null;
   public isMuted: boolean = true;
 
   constructor() {
@@ -32,24 +33,61 @@ class SonicEngine {
     
     this.ctx = new AudioContextClass();
     
-    // Create deep architectural hum (60Hz structural ambient drone)
-    this.ambientOsc = this.ctx.createOscillator();
+    // Create master ambient drone gain
     this.ambientGain = this.ctx.createGain();
+    this.ambientGain.gain.setValueAtTime(0.0, this.ctx.currentTime);
+    
+    // Warm low-pass filter for absolute cinematic texture
     const lpFilter = this.ctx.createBiquadFilter();
-
     lpFilter.type = 'lowpass';
-    lpFilter.frequency.setValueAtTime(90, this.ctx.currentTime);
+    lpFilter.frequency.setValueAtTime(160, this.ctx.currentTime);
+    lpFilter.Q.setValueAtTime(2.0, this.ctx.currentTime);
 
-    this.ambientOsc.type = 'sine';
-    this.ambientOsc.frequency.setValueAtTime(55, this.ctx.currentTime); // Low A hum
+    // Multi-voice epic generative meditation chord (A-suspended 2 chord)
+    // A1 (55Hz) - Root weight
+    // A2 (110Hz) - Solid core
+    // E3 (164.81Hz) - Perfect fifth structural block
+    // B3 (246.94Hz) - Suspended 2nd (cinematic tension/wonder)
+    // E4 (329.63Hz) - Luminescent glow shimmer
+    const pitches = [55, 110, 164.81, 246.94, 329.63];
+    const waveTypes: OscillatorType[] = ['sine', 'triangle', 'sine', 'triangle', 'sine'];
+    const voiceGains = [0.35, 0.22, 0.18, 0.12, 0.08];
 
-    this.ambientGain.gain.setValueAtTime(0.0, this.ctx.currentTime); // Start muted
+    pitches.forEach((freq, i) => {
+      if (!this.ctx) return;
+      const osc = this.ctx.createOscillator();
+      const gainNode = this.ctx.createGain();
+      
+      osc.type = waveTypes[i];
+      osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+      
+      // Slight detune for warm, rich chorusing/beating modulation
+      osc.detune.setValueAtTime((Math.random() - 0.5) * 10, this.ctx.currentTime);
+      
+      gainNode.gain.setValueAtTime(voiceGains[i], this.ctx.currentTime);
+      
+      osc.connect(gainNode);
+      gainNode.connect(lpFilter);
+      osc.start();
+      
+      this.voices.push({ osc, gain: gainNode });
+    });
 
-    this.ambientOsc.connect(lpFilter);
+    // Slow LFO to modulate the filter frequency for a breathing meditation texture
+    this.lfo = this.ctx.createOscillator();
+    const lfoGain = this.ctx.createGain();
+    
+    this.lfo.type = 'sine';
+    this.lfo.frequency.setValueAtTime(0.06, this.ctx.currentTime); // Deep slow breaths (~16.6 second cycle)
+    
+    lfoGain.gain.setValueAtTime(45, this.ctx.currentTime); // Modulate cutoff +/- 45Hz
+    
+    this.lfo.connect(lfoGain);
+    lfoGain.connect(lpFilter.frequency);
+    this.lfo.start();
+
     lpFilter.connect(this.ambientGain);
     this.ambientGain.connect(this.ctx.destination);
-    
-    this.ambientOsc.start();
   }
 
   public setMuted(muted: boolean) {
@@ -62,8 +100,8 @@ class SonicEngine {
       this.ctx.resume();
     }
 
-    const targetGain = muted ? 0.0 : 0.012; // Extremely soft background level
-    this.ambientGain.gain.setTargetAtTime(targetGain, this.ctx.currentTime, 0.4);
+    const targetGain = muted ? 0.0 : 0.038; // Rich background volume (smoothly controlled)
+    this.ambientGain.gain.setTargetAtTime(targetGain, this.ctx.currentTime, 1.5); // Warm slow fade-in
   }
 
   // Monospace digit coordinates rapid tick
