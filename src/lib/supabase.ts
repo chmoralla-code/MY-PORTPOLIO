@@ -99,13 +99,90 @@ export const supabase = {
     });
   },
 
-  // 2. Projects Gallery Management
   async getProjects(): Promise<Project[]> {
     try {
-      return await supabaseFetch('/rest/v1/projects?order=created_at.desc', {
+      const data = await supabaseFetch('/rest/v1/projects?order=created_at.desc', {
         method: 'GET',
         next: { revalidate: 0 }
       });
+
+      // If database has 0 projects, auto-seed the 5 master blueprints on server-side
+      if (Array.isArray(data) && data.length === 0 && typeof window === 'undefined') {
+        console.log('No projects found in database. Auto-seeding 5 default blueprints...');
+        const mockProjectsToSeed = [
+          {
+            title: 'KINETIC SHELL / MONOLITHIC PAVILION',
+            description: 'An exploration of self-supporting origami concrete shells utilizing hyper-thin fiber reinforced matrices. An ongoing spatial installation addressing structural weight in tropical microclimates.',
+            scale: 'SCALE 1:50',
+            location: 'PANGLAO, BOHOL',
+            materials: 'GLASS-FIBER CONCRETE // DENSITY: 2400 kg/m³ // THERMAL: 1.3 W/mK',
+            image_url: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80',
+            year: 2026,
+            client: 'BOHOL SPATIAL LAB',
+            media_type: 'image'
+          },
+          {
+            title: 'OBSIDIAN CORE / APERTURE HOUSE',
+            description: 'Residential typology carved entirely from basalt and volcanic aggregates. Operates as a thermodynamic sink utilizing deep-ground thermal mass cooling.',
+            scale: 'SCALE 1:100',
+            location: 'ALONA, PANGLAO',
+            materials: 'POLISHED BASALT // DENSITY: 2900 kg/m³ // THERMAL: 1.7 W/mK',
+            image_url: 'https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=1200&q=80',
+            year: 2025,
+            client: 'PRIVATE RESIDENCE',
+            media_type: 'image'
+          },
+          {
+            title: 'LUMINAL MATRIX / THE BRUTALIST ARCHIVE',
+            description: 'A civic research library utilizing post-tensioned raw concrete ribs. Natural light is filtered through deep concrete fins, creating an ever-shifting sundial layout inside.',
+            scale: 'SCALE 1:250',
+            location: 'TAGBILARAN CITY',
+            materials: 'POURED CONCRETE // DENSITY: 2300 kg/m³ // THERMAL: 1.2 W/mK',
+            image_url: 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1200&q=80',
+            year: 2026,
+            client: 'MUNICIPAL CIVIL DECK',
+            media_type: 'image'
+          },
+          {
+            title: 'FRACTAL REEF / FLOATING AQUACENE',
+            description: 'An offshore environmental research station constructed from carbon fiber composites. Features a modular frame designed to move in synchronization with oceanic swells.',
+            scale: 'SCALE 1:500',
+            location: 'MINDANAO TRENCH OVERLOOK',
+            materials: 'CARBON-REINFORCED VINYL // DENSITY: 1600 kg/m³ // THERMAL: 0.15 W/mK',
+            image_url: 'https://images.unsplash.com/photo-1600566753376-12c8ab7fb75b?auto=format&fit=crop&w=1200&q=80',
+            year: 2026,
+            client: 'OCEANIC RESEARCH DECK',
+            media_type: 'image'
+          },
+          {
+            title: 'AETHER SHROUD / TENSIONED PAVILION',
+            description: 'Temporary lightweight exhibition architecture using ultra-strong tensegrity columns and translucent acoustic membranes.',
+            scale: 'SCALE 1:25',
+            location: 'UBUJAN ARCHITECTURAL DECK',
+            materials: 'ALUMINUM EXTRUSION // DENSITY: 2700 kg/m³ // THERMAL: 200 W/mK',
+            image_url: 'https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&w=1200&q=80',
+            year: 2025,
+            client: 'CULTURAL COMMISSION PH',
+            media_type: 'image'
+          }
+        ];
+
+        try {
+          const seeded = await supabaseFetch('/rest/v1/projects', {
+            method: 'POST',
+            body: JSON.stringify(mockProjectsToSeed),
+            headers: {
+              'Prefer': 'return=representation'
+            }
+          });
+          console.log('Successfully seeded 5 default blueprints into Supabase!');
+          return seeded || [];
+        } catch (seedError) {
+          console.error('Failed to auto-seed projects:', seedError);
+        }
+      }
+
+      return data;
     } catch (e) {
       console.error('Error fetching projects:', e);
       return [];

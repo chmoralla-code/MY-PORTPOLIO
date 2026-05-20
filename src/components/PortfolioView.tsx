@@ -543,8 +543,9 @@ export default function PortfolioView({ initialInfo, initialProjects }: Portfoli
     ];
 
     const combined = [...dbProjects];
-    for (let i = combined.length; i < 5; i++) {
-      combined.push(mockProjects[i - combined.length]);
+    const initialLen = combined.length;
+    for (let i = initialLen; i < 5; i++) {
+      combined.push(mockProjects[i - initialLen]);
     }
     return combined;
   });
