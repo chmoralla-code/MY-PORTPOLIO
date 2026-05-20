@@ -148,7 +148,81 @@ export default function PortfolioView({ initialInfo, initialProjects }: Portfoli
     }
   );
 
-  const [projects] = useState<Project[]>(initialProjects || []);
+  // Pad to minimum of 5 columns to guarantee a spectacular full landscape layout showcase
+  const [projects] = useState<Project[]>(() => {
+    const dbProjects = initialProjects || [];
+    if (dbProjects.length >= 5) return dbProjects;
+
+    const mockProjects: Project[] = [
+      {
+        id: 'mock-1',
+        title: 'KINETIC SHELL / MONOLITHIC PAVILION',
+        description: 'An exploration of self-supporting origami concrete shells utilizing hyper-thin fiber reinforced matrices. An ongoing spatial installation addressing structural weight in tropical microclimates.',
+        scale: 'SCALE 1:50',
+        location: 'PANGLAO, BOHOL',
+        materials: 'GLASS-FIBER CONCRETE / ETHYLENE POLYMER',
+        image_url: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80',
+        year: 2026,
+        client: 'BOHOL SPATIAL LAB',
+        media_type: 'image'
+      },
+      {
+        id: 'mock-2',
+        title: 'OBSIDIAN CORE / APERTURE HOUSE',
+        description: 'Residential typology carved entirely from basalt and volcanic aggregates. Operates as a thermodynamic sink utilizing deep-ground thermal mass cooling.',
+        scale: 'SCALE 1:100',
+        location: 'ALONA, PANGLAO',
+        materials: 'POLISHED BASALT / STRUCTURAL STEEL / BLACK GLASS',
+        image_url: 'https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=1200&q=80',
+        year: 2025,
+        client: 'PRIVATE RESIDENCE',
+        media_type: 'image'
+      },
+      {
+        id: 'mock-3',
+        title: 'LUMINAL MATRIX / THE BRUTALIST ARCHIVE',
+        description: 'A civic research library utilizing post-tensioned raw concrete ribs. Natural light is filtered through deep concrete fins, creating an ever-shifting sundial layout inside.',
+        scale: 'SCALE 1:250',
+        location: 'TAGBILARAN CITY',
+        materials: 'POURED CONCRETE / SANDBLASTED TITANIUM',
+        image_url: 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1200&q=80',
+        year: 2026,
+        client: 'MUNICIPAL CIVIL DECK',
+        media_type: 'image'
+      },
+      {
+        id: 'mock-4',
+        title: 'FRACTAL REEF / FLOATING AQUACENE',
+        description: 'An offshore environmental research station constructed from carbon fiber composites. Features a modular frame designed to move in synchronization with oceanic swells.',
+        scale: 'SCALE 1:500',
+        location: 'MINDANAO TRENCH OVERLOOK',
+        materials: 'CARBON-REINFORCED VINYL / STAINLESS STEEL',
+        image_url: 'https://images.unsplash.com/photo-1600566753376-12c8ab7fb75b?auto=format&fit=crop&w=1200&q=80',
+        year: 2026,
+        client: 'OCEANIC RESEARCH DECK',
+        media_type: 'image'
+      },
+      {
+        id: 'mock-5',
+        title: 'AETHER SHROUD / TENSIONED PAVILION',
+        description: 'Temporary lightweight exhibition architecture using ultra-strong tensegrity columns and translucent acoustic membranes.',
+        scale: 'SCALE 1:25',
+        location: 'UBUJAN ARCHITECTURAL DECK',
+        materials: 'ALUMINUM EXTRUSION / SILICONE COATED TFE',
+        image_url: 'https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&w=1200&q=80',
+        year: 2025,
+        client: 'CULTURAL COMMISSION PH',
+        media_type: 'image'
+      }
+    ];
+
+    const combined = [...dbProjects];
+    for (let i = combined.length; i < 5; i++) {
+      combined.push(mockProjects[i - combined.length]);
+    }
+    return combined;
+  });
+
   const [isContactOpen, setIsContactOpen] = useState(false);
   const [activeSection, setActiveSection] = useState(0);
   const [isMuted, setIsMuted] = useState(true);
@@ -166,6 +240,13 @@ export default function PortfolioView({ initialInfo, initialProjects }: Portfoli
   // Form states
   const [formData, setFormData] = useState({ name: '', email: '', details: '' });
   const [formStatus, setFormStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle');
+
+  // High-performance dynamic scroll parallax states
+  const [scrollY, setScrollY] = useState(0);
+  const [showcaseOffset, setShowcaseOffset] = useState(0);
+  const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const showcaseRef = useRef<HTMLDivElement>(null);
 
   // 1. Initialize Audio Engine
   useEffect(() => {
@@ -212,20 +293,41 @@ export default function PortfolioView({ initialInfo, initialProjects }: Portfoli
     return () => window.removeEventListener('mousemove', handleMouseMove);
   }, []);
 
-  // 4. Scroll monitoring for navigation rails & dynamic viewport swoops
+  // 4. Combined High-Performance Scroll, Snapping & Parallax Tracker
   useEffect(() => {
+    let ticking = false;
+
     const handleScroll = () => {
-      const scrollPos = window.scrollY;
-      const windowHeight = window.innerHeight;
-      const current = Math.round(scrollPos / windowHeight);
-      
-      if (current !== activeSection) {
-        setActiveSection(current);
-        audio.current?.tick(); // Soft tick on slide snapping
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          const scrollPos = window.scrollY;
+          setScrollY(scrollPos);
+
+          // Snapping calculations (0 for Intro, 1 for Showcase)
+          const windowHeight = window.innerHeight;
+          const current = scrollPos >= windowHeight * 0.4 ? 1 : 0;
+          
+          if (current !== activeSection) {
+            setActiveSection(current);
+            audio.current?.tick();
+          }
+
+          // Calculate relative scroll offset inside the showcase
+          if (showcaseRef.current) {
+            const rect = showcaseRef.current.getBoundingClientRect();
+            const sectionTop = rect.top + scrollPos;
+            setShowcaseOffset(scrollPos - sectionTop);
+          }
+
+          ticking = false;
+        });
+        ticking = true;
       }
     };
 
     window.addEventListener('scroll', handleScroll, { passive: true });
+    // Trigger initial load calculation
+    setTimeout(handleScroll, 100);
     return () => window.removeEventListener('scroll', handleScroll);
   }, [activeSection]);
 
@@ -284,10 +386,18 @@ export default function PortfolioView({ initialInfo, initialProjects }: Portfoli
   // Convert scroll index to drafting scale representation
   const getDraftingScale = () => {
     if (activeSection === 0) return 'SCALE 1:1 [HUMAN AXIS]';
-    if (activeSection === 1) return 'SCALE 1:25 [FOUNDATION]';
-    if (activeSection === 2) return 'SCALE 1:100 [STRUCTURAL]';
-    if (activeSection === 3) return 'SCALE 1:250 [TOPOLOGICAL]';
-    return `SCALE 1:${activeSection * 125} [MACRO GRID]`;
+    return 'SCALE 1:100 [STRUCTURAL BLUEPRINTS]';
+  };
+
+  // Clamped drifting calculator for columns:
+  // Odd-indexed columns (Col 1, 3, 5) translate upwards.
+  // Even-indexed columns (Col 2, 4) translate downwards.
+  const getTranslationY = (idx: number) => {
+    const isOdd = idx % 2 === 0;
+    const factor = isOdd ? 0.12 : -0.08;
+    const translation = showcaseOffset * factor;
+    // Clamp to protect layout boundaries
+    return Math.max(-80, Math.min(80, translation));
   };
 
   return (
@@ -398,11 +508,11 @@ export default function PortfolioView({ initialInfo, initialProjects }: Portfoli
 
       {/* 7. DYNAMIC PAGINATION RAIL (DRAFTING MEASURING SCALE RULER) */}
       <div className="fixed top-1/2 right-6 md:right-12 z-35 -translate-y-1/2 flex flex-col items-end gap-6 pointer-events-none select-none">
-        <div className="h-[200px] w-[1px] bg-white/10 relative mb-4 hidden lg:block">
+        <div className="h-[120px] w-[1px] bg-white/10 relative mb-4 hidden lg:block">
           {/* Moving depth slider dot */}
           <div 
             className="absolute left-1/2 -translate-x-1/2 w-2.5 h-2.5 bg-white border border-black rounded-full transition-all duration-700 ease-out"
-            style={{ top: `${(activeSection / Math.max(projects.length, 1)) * 100}%` }}
+            style={{ top: `${activeSection * 100}%` }}
           />
         </div>
         <div className="flex flex-col gap-4 pointer-events-auto items-end text-right">
@@ -415,17 +525,14 @@ export default function PortfolioView({ initialInfo, initialProjects }: Portfoli
             00 INTRO {activeSection === 0 && <span className="w-1.5 h-1.5 bg-white rounded-full" />}
           </button>
           
-          {projects.map((proj, idx) => (
-            <button
-              key={proj.id}
-              onClick={() => scrollToPanel(idx + 1)}
-              className={`text-[9px] tracking-[0.2em] transition-all duration-500 flex items-center gap-2 cursor-pointer focus:outline-none uppercase ${
-                activeSection === idx + 1 ? 'text-white scale-110 font-bold' : 'text-white/30 hover:text-white/60'
-              }`}
-            >
-              {(idx + 1).toString().padStart(2, '0')} {proj.title.substring(0, 10)}... {activeSection === idx + 1 && <span className="w-1.5 h-1.5 bg-white rounded-full" />}
-            </button>
-          ))}
+          <button
+            onClick={() => scrollToPanel(1)}
+            className={`text-[9px] tracking-[0.2em] transition-all duration-500 flex items-center gap-2 cursor-pointer focus:outline-none uppercase ${
+              activeSection === 1 ? 'text-white scale-110 font-bold' : 'text-white/30 hover:text-white/60'
+            }`}
+          >
+            01 BLUEPRINTS {activeSection === 1 && <span className="w-1.5 h-1.5 bg-white rounded-full" />}
+          </button>
         </div>
       </div>
 
@@ -453,92 +560,118 @@ export default function PortfolioView({ initialInfo, initialProjects }: Portfoli
           </div>
         </section>
 
-        {/* VIEWPORT PANELS 01+: DYNAMIC ASYMMETRICAL SPLIT-SCREEN REVEALS */}
-        {projects.map((proj, idx) => (
-          <section
-            key={proj.id}
-            className="w-full h-screen flex flex-col justify-end md:justify-center relative px-6 md:px-24 py-16 border-t border-white/5 overflow-hidden select-none"
-          >
-            {/* Background Geometric Indexes */}
-            <div className="absolute top-24 left-10 md:left-24 font-bold text-[18vw] text-white/[0.015] select-none leading-none z-0 tracking-tighter">
-              {(idx + 1).toString().padStart(2, '0')}
+        {/* VIEWPORT PANEL 01: STARK OBSIDIAN-CONCRETE PORTRAIT PARALLAX SHOWCASE */}
+        <section
+          ref={showcaseRef}
+          className="w-full min-h-screen py-24 md:py-36 px-6 md:px-12 relative border-t border-white/5 overflow-hidden flex flex-col justify-center select-none"
+        >
+          {/* Section Heading & Grid Controls */}
+          <div className="max-w-[90vw] mx-auto w-full mb-12 md:mb-16 flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-white/5 pb-8 relative z-10">
+            <div>
+              <span className="text-white/40 text-[9px] tracking-[0.3em] uppercase mb-2 block font-bold">
+                [ INDEX 01 // SELECTED BLUEPRINTS ]
+              </span>
+              <h2 className="text-xl md:text-3xl font-light tracking-wide text-white uppercase font-sans">
+                LIVING ARCHITECTURE SPECIFICATIONS
+              </h2>
             </div>
+            <div className="text-[9px] text-white/35 font-mono uppercase tracking-[0.2em] text-left md:text-right">
+              // EVOLVING SPATIAL MATRIX<br />
+              // HOVER FOR DOF BLUR // CLICK TO DECODE
+            </div>
+          </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-16 items-center z-10 w-full relative">
-              {/* Left Column: Asymmetrical Editorial Copy & Specifications Grid */}
-              <div 
-                className="lg:col-span-5 flex flex-col justify-center select-text order-2 lg:order-1 transition-all duration-1000"
-                style={{
-                  transform: activeSection === idx + 1 ? 'translateY(0)' : 'translateY(30px)',
-                  opacity: activeSection === idx + 1 ? 1 : 0
-                }}
-              >
-                <div className="flex gap-4 text-[9px] tracking-[0.25em] text-white/40 mb-4 uppercase font-bold">
-                  <span>{proj.client}</span>
-                  <span>/</span>
-                  <span>{proj.year}</span>
-                </div>
-                
-                <h2 className="text-xl md:text-3xl font-light tracking-wide text-white uppercase mb-6 leading-snug font-sans">
-                  {proj.title}
-                </h2>
-                
-                <p className="text-xs md:text-sm tracking-wider text-white/60 leading-relaxed mb-8 uppercase max-w-md font-mono">
-                  {proj.description}
-                </p>
+          {/* Asymmetrical 5-Column Portrait Grid */}
+          <div className="max-w-[90vw] mx-auto w-full grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-8 lg:gap-10 xl:gap-12 relative z-10 items-start min-h-[600px]">
+            {projects.map((proj, idx) => {
+              const translationY = getTranslationY(idx);
+              const isHovered = hoveredIdx === idx;
+              const isAnyHovered = hoveredIdx !== null;
+              
+              // Apply hover-based blurring classes
+              let cardClass = "relative w-full aspect-[10/16] rounded-[2.25rem] md:rounded-[2.5rem] overflow-hidden border transition-all duration-700 cubic-bezier(0.16, 1, 0.3, 1) cursor-pointer group shadow-lg";
+              if (isAnyHovered) {
+                if (isHovered) {
+                  cardClass += " scale-105 opacity-100 grayscale-0 contrast-125 z-20 shadow-[0_0_60px_rgba(255,255,255,0.12)] border-white/40";
+                } else {
+                  cardClass += " scale-95 opacity-20 blur-[4px] grayscale pointer-events-none border-white/5";
+                }
+              } else {
+                cardClass += " scale-100 opacity-60 grayscale contrast-[1.1] blur-[0.5px] border-white/10 hover:border-white/20";
+              }
 
-                {/* Technical Specifications Matrix Grid */}
-                <div className="grid grid-cols-2 gap-4 border-t border-b border-white/10 py-6 mb-8 uppercase text-[10px] tracking-wider font-mono">
-                  <div>
-                    <span className="text-white/35 block text-[8px] mb-1">[ SCALE ]</span>
-                    <span className="text-white font-bold">{proj.scale || 'N/A'}</span>
-                  </div>
-                  <div>
-                    <span className="text-white/35 block text-[8px] mb-1">[ LOCATION ]</span>
-                    <span className="text-white font-bold">{proj.location || 'N/A'}</span>
-                  </div>
-                  <div className="col-span-2 mt-2">
-                    <span className="text-white/35 block text-[8px] mb-1">[ MATERIALS MATRIX ]</span>
-                    <span className="text-white font-bold">{proj.materials || 'N/A'}</span>
-                  </div>
-                </div>
-
-                <a
-                  href={proj.image_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-[9px] tracking-[0.25em] text-white flex items-center gap-2 hover:text-white/60 w-fit transition-colors duration-300 font-bold"
+              return (
+                <div
+                  key={proj.id}
+                  onClick={() => {
+                    audio.current?.click();
+                    audio.current?.swoop();
+                    setSelectedProject(proj);
+                  }}
+                  onMouseEnter={() => {
+                    audio.current?.tick();
+                    setHoveredIdx(idx);
+                  }}
+                  onMouseLeave={() => setHoveredIdx(null)}
+                  className={cardClass}
+                  style={{
+                    transform: `translateY(${translationY}px)`,
+                  }}
                 >
-                  FULL RENDER SPEC <ArrowUpRight className="w-3 h-3" />
-                </a>
-              </div>
+                  {/* Aspect Ratio media element container */}
+                  <div className="absolute inset-0 z-0 bg-neutral-950">
+                    <OptimizedMedia
+                      src={proj.image_url}
+                      alt={proj.title}
+                      type={proj.media_type}
+                    />
+                    {/* Contrast backdrop overlay */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-60 group-hover:opacity-40 transition-opacity duration-500" />
+                  </div>
 
-              {/* Right Column: Visual Frame featuring Aspect-Ratio Shift Protection */}
-              <div 
-                className="lg:col-span-7 flex justify-center items-center order-1 lg:order-2 transition-all duration-1000"
-                style={{
-                  transform: activeSection === idx + 1 ? 'translateY(0)' : 'translateY(-30px)',
-                  opacity: activeSection === idx + 1 ? 1 : 0
-                }}
-                onMouseEnter={() => setIsCursorHovering(true)}
-                onMouseLeave={() => setIsCursorHovering(false)}
-              >
-                <div className="w-full aspect-[16/10] shadow-2xl bg-neutral-950 overflow-hidden relative group">
-                  <OptimizedMedia
-                    src={proj.image_url}
-                    alt={proj.title}
-                    type={proj.media_type}
-                  />
-                  {/* Subtle technical zoom lens frame overlay */}
-                  <div className="absolute inset-0 pointer-events-none border border-white/10 group-hover:border-white/20 transition-all duration-500" />
-                  <div className="absolute top-4 right-4 text-[8px] bg-black/60 px-2.5 py-1 border border-white/10 font-bold tracking-widest opacity-0 group-hover:opacity-100 transition-all duration-500 uppercase">
-                    [ VIEW SPECIFICATIONS ]
+                  {/* Top CAD Label */}
+                  <div className="absolute top-6 left-6 z-10 font-mono text-[7px] text-white/35 uppercase tracking-[0.25em] flex justify-between w-[calc(100%-3rem)] font-bold">
+                    <span>GRID_ID: 0{idx+1}</span>
+                    <span>{proj.year}</span>
+                  </div>
+
+                  {/* Bottom title display */}
+                  <div className="absolute bottom-6 left-6 right-6 z-10 transition-all duration-500 transform group-hover:-translate-y-4 group-hover:opacity-0 text-left">
+                    <span className="text-[7px] text-white/45 uppercase tracking-widest block mb-1 font-bold">{proj.client}</span>
+                    <h3 className="text-[11px] md:text-xs font-light text-white uppercase tracking-wider leading-snug line-clamp-2">
+                      {proj.title}
+                    </h3>
+                  </div>
+
+                  {/* Spec Deck HUD (Slides up on Hover) */}
+                  <div className="absolute bottom-6 left-6 right-6 z-30 transition-all duration-500 transform translate-y-8 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 bg-[#070707]/90 backdrop-blur-xl border border-white/15 p-5 rounded-2xl font-mono text-[9px] uppercase tracking-wider text-left leading-relaxed">
+                    <div className="text-[7px] text-white/40 mb-2 border-b border-white/10 pb-1.5 flex justify-between font-bold">
+                      <span>[ SPECIFICATION DECK ]</span>
+                      <span>REF_AXIS_0{idx+1}</span>
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <div>
+                        <span className="text-white/35 block text-[7px]">[ SCALE ]</span>
+                        <span className="text-white font-bold">{proj.scale || 'N/A'}</span>
+                      </div>
+                      <div>
+                        <span className="text-white/35 block text-[7px]">[ LOCATION ]</span>
+                        <span className="text-white font-bold truncate block">{proj.location || 'N/A'}</span>
+                      </div>
+                      <div>
+                        <span className="text-white/35 block text-[7px]">[ MATERIALS ]</span>
+                        <span className="text-white font-bold truncate block">{proj.materials || 'N/A'}</span>
+                      </div>
+                    </div>
+                    <div className="mt-3 text-center text-white/50 text-[7px] group-hover:text-white transition-colors duration-300 font-bold border-t border-white/10 pt-2 flex items-center justify-center gap-1">
+                      DECODE SPECIFICATION <ArrowUpRight className="w-2.5 h-2.5" />
+                    </div>
                   </div>
                 </div>
-              </div>
-            </div>
-          </section>
-        ))}
+              );
+            })}
+          </div>
+        </section>
       </main>
 
       {/* 9. FULL-SCREEN GLASSMORPHIC CONNECT OVERLAY */}
@@ -635,6 +768,106 @@ export default function PortfolioView({ initialInfo, initialProjects }: Portfoli
                 )}
               </button>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* 10. FULL-SCREEN OBSIDIAN STRUCTURAL DETAIL DRAWER */}
+      {selectedProject && (
+        <div className="fixed inset-0 z-50 bg-[#030303]/98 backdrop-blur-3xl overflow-y-auto p-6 md:p-12 lg:p-16 flex items-center justify-center animate-fadeIn select-text">
+          <div className="w-full max-w-6xl bg-neutral-950/80 border border-white/10 rounded-[2rem] p-8 md:p-12 relative overflow-hidden shadow-2xl flex flex-col lg:flex-row gap-12 lg:gap-16 items-stretch min-h-[75vh]">
+            {/* Decorative Blueprint grid background */}
+            <div 
+              className="absolute inset-0 pointer-events-none opacity-[0.03]"
+              style={{
+                backgroundImage: 'linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px)',
+                backgroundSize: '24px 24px'
+              }}
+            />
+            
+            {/* Close Trigger */}
+            <button
+              onClick={() => { audio.current?.click(); audio.current?.swoop(); setSelectedProject(null); }}
+              className="absolute top-8 right-8 p-3 rounded-full border border-white/10 bg-white/5 text-white/60 hover:text-white hover:border-white hover:scale-110 transition-all duration-300 cursor-pointer focus:outline-none z-30"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            {/* Left panel: CAD data display & details */}
+            <div className="w-full lg:w-1/2 flex flex-col justify-between z-10">
+              <div>
+                <div className="flex gap-4 text-[9px] tracking-[0.25em] text-white/40 mb-6 uppercase font-bold border-b border-white/5 pb-4">
+                  <span>[ SYSTEM SPECIFICATION ]</span>
+                  <span>{selectedProject.client}</span>
+                  <span>/</span>
+                  <span>{selectedProject.year}</span>
+                </div>
+
+                <h3 className="text-2xl md:text-4xl font-light tracking-wide text-white uppercase mb-8 leading-snug font-sans">
+                  {selectedProject.title}
+                </h3>
+
+                <p className="text-xs md:text-sm tracking-wider text-white/70 leading-relaxed mb-8 uppercase font-mono max-w-lg">
+                  {selectedProject.description}
+                </p>
+
+                {/* Expanded Engineering Specs Matrix */}
+                <div className="grid grid-cols-2 gap-6 border-t border-b border-white/10 py-8 mb-8 uppercase text-[10px] tracking-wider font-mono">
+                  <div>
+                    <span className="text-white/35 block text-[7px] mb-1.5">[ DRAFTING SCALE ]</span>
+                    <span className="text-white font-bold">{selectedProject.scale || '1:100'}</span>
+                  </div>
+                  <div>
+                    <span className="text-white/35 block text-[7px] mb-1.5">[ COORDINATES / LOC ]</span>
+                    <span className="text-white font-bold truncate block">{selectedProject.location || 'BOHOL, PH'}</span>
+                  </div>
+                  <div className="col-span-2">
+                    <span className="text-white/35 block text-[7px] mb-1.5">[ EXTRACTED MATERIAL COMPOSITION ]</span>
+                    <span className="text-white font-bold leading-relaxed">{selectedProject.materials || 'RAW CONCRETE / GLASS'}</span>
+                  </div>
+                  <div className="col-span-2 border-t border-white/5 pt-4 grid grid-cols-2 gap-4">
+                    <div>
+                      <span className="text-white/35 block text-[7px] mb-1.5">[ STRUCTURAL DENSITY ]</span>
+                      <span className="text-white/60">2400 kg/m³</span>
+                    </div>
+                    <div>
+                      <span className="text-white/35 block text-[7px] mb-1.5">[ THERMAL RESISTANCE ]</span>
+                      <span className="text-white/60">R-value: 0.12 m²·K/W</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-4 border-t border-white/5 pt-6">
+                <a
+                  href={selectedProject.image_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 text-center text-[10px] tracking-[0.25em] text-black bg-white hover:bg-neutral-200 py-3.5 rounded font-bold transition-all duration-300 uppercase flex items-center justify-center gap-2"
+                >
+                  VIEW HIGH-RES BLUEPRINT <ArrowUpRight className="w-3.5 h-3.5" />
+                </a>
+                <button
+                  onClick={() => { audio.current?.click(); setSelectedProject(null); }}
+                  className="flex-1 text-center text-[10px] tracking-[0.25em] text-white border border-white/10 hover:border-white/30 hover:bg-white/5 py-3.5 rounded font-bold transition-all duration-300 uppercase"
+                >
+                  CLOSE DOCUMENT
+                </button>
+              </div>
+            </div>
+
+            {/* Right panel: Blueprint visual block */}
+            <div className="w-full lg:w-1/2 flex items-center justify-center z-10 relative">
+              <div className="w-full h-full min-h-[350px] lg:min-h-0 bg-neutral-900 border border-white/10 overflow-hidden relative rounded-2xl group flex items-center justify-center">
+                <OptimizedMedia
+                  src={selectedProject.image_url}
+                  alt={selectedProject.title}
+                  type={selectedProject.media_type}
+                />
+                {/* Subtle blueprint lines overlay */}
+                <div className="absolute inset-0 pointer-events-none border border-white/10" />
+              </div>
+            </div>
           </div>
         </div>
       )}
