@@ -4,7 +4,8 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
   FileText, Image as ImageIcon, Inbox, LogOut, Save, Plus, 
-  Trash2, UploadCloud, CheckCircle, RefreshCw, Eye, User 
+  Trash2, UploadCloud, CheckCircle, RefreshCw, Eye, User,
+  Edit3, X, Film, Camera
 } from 'lucide-react';
 import type { PortfolioInfo, Project, ContactMessage } from '@/lib/supabase';
 
@@ -156,7 +157,7 @@ export default function AdminDashboard({ initialInfo, initialProjects, initialMe
     }
   };
 
-  // Form states - Project
+  // Form states - New Project
   const [projectData, setProjectData] = useState({
     title: '',
     description: '',
@@ -172,6 +173,15 @@ export default function AdminDashboard({ initialInfo, initialProjects, initialMe
   const [dragActive, setDragActive] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
   const [uploadError, setUploadError] = useState('');
+
+  // Edit Project states
+  const [editingProject, setEditingProject] = useState<Project | null>(null);
+  const [editData, setEditData] = useState({
+    title: '', description: '', year: 2026, client: '', scale: '', location: '', materials: '', density: '', thermal: ''
+  });
+  const [editFile, setEditFile] = useState<File | null>(null);
+  const [editStatus, setEditStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
+  const [editError, setEditError] = useState('');
 
   // Delete project states
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -342,6 +352,112 @@ export default function AdminDashboard({ initialInfo, initialProjects, initialMe
     }
   };
 
+  // ==========================================
+  // EDIT PROJECT HANDLERS
+  // ==========================================
+  const startEditProject = (proj: Project) => {
+    // Parse materials back to separate fields
+    const matParts = (proj.materials || '').split(' || ');
+    const composition = matParts[0] || '';
+    let density = '2400 kg/m³';
+    let thermal = 'R-value: 0.12 m²·K/W';
+    matParts.forEach(part => {
+      if (part.startsWith('DENSITY: ')) density = part.replace('DENSITY: ', '');
+      else if (part.startsWith('THERMAL: ')) thermal = part.replace('THERMAL: ', '');
+    });
+
+    setEditingProject(proj);
+    setEditData({
+      title: proj.title,
+      description: proj.description,
+      year: proj.year,
+      client: proj.client,
+      scale: proj.scale || '',
+      location: proj.location || '',
+      materials: composition,
+      density,
+      thermal
+    });
+    setEditFile(null);
+    setEditStatus('idle');
+    setEditError('');
+  };
+
+  const handleEditFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setEditFile(e.target.files[0]);
+    }
+  };
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingProject) return;
+    setEditStatus('saving');
+    setEditError('');
+
+    try {
+      let fileToUpload = editFile;
+
+      // Pre-compress images
+      if (fileToUpload && fileToUpload.type.startsWith('image/')) {
+        try {
+          const webpBlob = await compressImageToWebP(fileToUpload, 0.82);
+          const newName = fileToUpload.name.substring(0, fileToUpload.name.lastIndexOf('.')) + '.webp';
+          fileToUpload = new File([webpBlob], newName, { type: 'image/webp' });
+        } catch (compressErr) {
+          console.warn('Pre-compression failed:', compressErr);
+        }
+      }
+
+      // Encode materials with density/thermal
+      let combinedMaterials = editData.materials;
+      if (editData.density || editData.thermal) {
+        combinedMaterials += ` || DENSITY: ${editData.density || '2400 kg/m³'} || THERMAL: ${editData.thermal || 'R-value: 0.12 m²·K/W'}`;
+      }
+
+      const formData = new FormData();
+      formData.append('id', editingProject.id);
+      formData.append('title', editData.title);
+      formData.append('description', editData.description);
+      formData.append('year', editData.year.toString());
+      formData.append('client', editData.client);
+      formData.append('scale', editData.scale);
+      formData.append('location', editData.location);
+      formData.append('materials', combinedMaterials);
+      formData.append('old_image_url', editingProject.image_url);
+
+      if (fileToUpload) {
+        formData.append('file', fileToUpload);
+      }
+
+      const res = await fetch('/api/admin/project-update', {
+        method: 'PATCH',
+        body: formData
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || 'Update failed');
+      }
+
+      const data = await res.json();
+      const updatedProject = data.project[0];
+
+      // Update local state
+      setProjects(prev => prev.map(p => p.id === editingProject.id ? updatedProject : p));
+
+      setEditStatus('success');
+      setTimeout(() => {
+        setEditingProject(null);
+        setEditStatus('idle');
+      }, 1500);
+    } catch (err: any) {
+      console.error('Edit project error:', err);
+      setEditStatus('error');
+      setEditError(err.message || 'Update failed');
+    }
+  };
+
   const handleMarkAsRead = async (id: string) => {
     try {
       const res = await fetch('/api/admin/messages-read', {
@@ -389,6 +505,7 @@ export default function AdminDashboard({ initialInfo, initialProjects, initialMe
             <div>PROJECT_REF: hzeqntoxqey</div>
             <div>LATENCY: 42MS // GPU: SHDR</div>
             <div>PRE_COMPRESS: WEBP [0.82]</div>
+            <div>VIDEO: MP4/WEBM [DIRECT]</div>
             <div>LIMIT_CEIL: 50MB [MAX]</div>
             <div className="w-full bg-white/5 h-[3px] mt-3 rounded-full overflow-hidden">
               <div className="bg-white h-full w-[78%] animate-pulse" />
@@ -632,7 +749,8 @@ export default function AdminDashboard({ initialInfo, initialProjects, initialMe
               
               {/* Media Uploader Form */}
               <div className="border-b border-white/10 pb-6">
-                <h2 className="text-xs font-bold uppercase tracking-[0.2em] mb-4">UPLOAD NEW ARCHITECTURAL WORK</h2>
+                <h2 className="text-xs font-bold uppercase tracking-[0.2em] mb-1">UPLOAD NEW PROJECT</h2>
+                <p className="text-[9px] text-white/40 uppercase mb-4">Upload images (PNG, JPG, WebP) or videos (MP4, WebM) from your local computer.</p>
                 
                 <form onSubmit={handleProjectSubmit} className="grid grid-cols-1 lg:grid-cols-12 gap-6 text-xs">
                   
@@ -649,8 +767,8 @@ export default function AdminDashboard({ initialInfo, initialProjects, initialMe
                     >
                       {selectedFile ? (
                         <div className="flex flex-col items-center gap-3">
-                          <div className="px-3 py-1.5 rounded bg-white/5 border border-white/10 font-bold uppercase tracking-widest text-[9px]">
-                            {selectedFile.type.startsWith('video/') ? 'VIDEO' : 'IMAGE'}
+                          <div className="px-3 py-1.5 rounded bg-white/5 border border-white/10 font-bold uppercase tracking-widest text-[9px] flex items-center gap-2">
+                            {selectedFile.type.startsWith('video/') ? <><Film className="w-3 h-3" /> VIDEO</> : <><Camera className="w-3 h-3" /> IMAGE</>}
                           </div>
                           <span className="font-bold text-[10px] text-white/90 truncate max-w-[220px]">{selectedFile.name}</span>
                           <span className="text-[9px] text-white/40">{(selectedFile.size / (1024 * 1024)).toFixed(2)} MB</span>
@@ -666,7 +784,7 @@ export default function AdminDashboard({ initialInfo, initialProjects, initialMe
                         <div className="flex flex-col items-center gap-2">
                           <UploadCloud className="w-8 h-8 text-white/20 mb-1" />
                           <span className="text-[10px] font-bold uppercase tracking-wider text-white/60">Drag & Drop media here</span>
-                          <span className="text-[9px] text-white/35 uppercase">Images (WebP/AVIF/PNG) or Videos (MP4/WebM)</span>
+                          <span className="text-[9px] text-white/35 uppercase">Images (WebP/AVIF/PNG/JPG) or Videos (MP4/WebM)</span>
                           <label className="mt-3 cursor-pointer px-4 py-2 border border-white/10 bg-white/5 rounded text-[9px] tracking-widest uppercase hover:bg-white/10 transition-all duration-300 focus:outline-none">
                             BROWSE FILES
                             <input
@@ -736,20 +854,6 @@ export default function AdminDashboard({ initialInfo, initialProjects, initialMe
                       onChange={(e) => setProjectData(prev => ({ ...prev, materials: e.target.value }))}
                       className="bg-white/5 border border-white/10 rounded px-3 py-2.5 text-white focus:outline-none focus:border-white uppercase text-xs"
                     />
-                    <input
-                      type="text"
-                      placeholder="STRUCTURAL DENSITY (e.g., 2400 kg/m³)"
-                      value={projectData.density}
-                      onChange={(e) => setProjectData(prev => ({ ...prev, density: e.target.value }))}
-                      className="bg-white/5 border border-white/10 rounded px-3 py-2.5 text-white focus:outline-none focus:border-white uppercase text-xs"
-                    />
-                    <input
-                      type="text"
-                      placeholder="THERMAL RESISTANCE (e.g., R-value: 0.12 m²·K/W)"
-                      value={projectData.thermal}
-                      onChange={(e) => setProjectData(prev => ({ ...prev, thermal: e.target.value }))}
-                      className="bg-white/5 border border-white/10 rounded px-3 py-2.5 text-white focus:outline-none focus:border-white uppercase text-xs"
-                    />
 
                     {uploadStatus === 'error' && (
                       <span className="text-[9px] text-red-400 font-bold uppercase">{uploadError}</span>
@@ -772,7 +876,7 @@ export default function AdminDashboard({ initialInfo, initialProjects, initialMe
                 </form>
               </div>
 
-              {/* Grid Preview and Delete */}
+              {/* Grid Preview, Edit, and Delete */}
               <div>
                 <h2 className="text-xs font-bold uppercase tracking-[0.2em] mb-4">CURRENT PROJECTS GALLERY ({projects.length})</h2>
                 
@@ -794,6 +898,8 @@ export default function AdminDashboard({ initialInfo, initialProjects, initialMe
                               loop 
                               playsInline 
                               className="w-full h-full object-cover grayscale brightness-90"
+                              onMouseEnter={(e) => (e.target as HTMLVideoElement).play()}
+                              onMouseLeave={(e) => (e.target as HTMLVideoElement).pause()}
                             />
                           ) : (
                             <img 
@@ -802,12 +908,13 @@ export default function AdminDashboard({ initialInfo, initialProjects, initialMe
                               className="w-full h-full object-cover grayscale brightness-90"
                             />
                           )}
-                          <div className="absolute top-2 left-2 bg-black/60 text-[8px] font-bold tracking-widest px-2 py-0.5 rounded border border-white/10 uppercase">
+                          <div className="absolute top-2 left-2 bg-black/60 text-[8px] font-bold tracking-widest px-2 py-0.5 rounded border border-white/10 uppercase flex items-center gap-1">
+                            {proj.media_type === 'video' ? <Film className="w-2.5 h-2.5" /> : <Camera className="w-2.5 h-2.5" />}
                             {proj.media_type}
                           </div>
                         </div>
 
-                        {/* Details & Action */}
+                        {/* Details & Actions */}
                         <div className="p-4 flex-1 flex flex-col justify-between">
                           <div>
                             <div className="flex gap-2 text-[8px] text-white/40 tracking-wider mb-1 uppercase font-bold">
@@ -816,23 +923,32 @@ export default function AdminDashboard({ initialInfo, initialProjects, initialMe
                               <span>{proj.year}</span>
                             </div>
                             <h3 className="text-[11px] font-bold text-white uppercase tracking-wider mb-2 truncate">{proj.title}</h3>
+                            <p className="text-[9px] text-white/40 uppercase line-clamp-2 leading-relaxed mb-3">{proj.description}</p>
                           </div>
 
-                          <button
-                            onClick={() => {
-                              if(confirm(`Are you sure you want to delete project: ${proj.title}?`)) {
-                                handleDeleteProject(proj.id, proj.image_url);
-                              }
-                            }}
-                            disabled={deletingId === proj.id}
-                            className="w-full mt-3 flex items-center justify-center gap-1.5 py-1.5 border border-red-500/10 hover:border-red-500/40 text-[9px] font-bold tracking-widest text-red-400 hover:text-red-300 hover:bg-red-950/20 rounded transition-all duration-300 cursor-pointer uppercase focus:outline-none"
-                          >
-                            {deletingId === proj.id ? (
-                              <><RefreshCw className="w-3 animate-spin" /> DELETING...</>
-                            ) : (
-                              <><Trash2 className="w-3" /> DELETE PROJECT</>
-                            )}
-                          </button>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => startEditProject(proj)}
+                              className="flex-1 flex items-center justify-center gap-1.5 py-1.5 border border-white/10 hover:border-white/30 text-[9px] font-bold tracking-widest text-white/70 hover:text-white hover:bg-white/5 rounded transition-all duration-300 cursor-pointer uppercase focus:outline-none"
+                            >
+                              <Edit3 className="w-3 h-3" /> EDIT
+                            </button>
+                            <button
+                              onClick={() => {
+                                if(confirm(`Are you sure you want to delete project: ${proj.title}?`)) {
+                                  handleDeleteProject(proj.id, proj.image_url);
+                                }
+                              }}
+                              disabled={deletingId === proj.id}
+                              className="flex-1 flex items-center justify-center gap-1.5 py-1.5 border border-red-500/10 hover:border-red-500/40 text-[9px] font-bold tracking-widest text-red-400 hover:text-red-300 hover:bg-red-950/20 rounded transition-all duration-300 cursor-pointer uppercase focus:outline-none"
+                            >
+                              {deletingId === proj.id ? (
+                                <><RefreshCw className="w-3 animate-spin" /> ...</>
+                              ) : (
+                                <><Trash2 className="w-3" /> DELETE</>
+                              )}
+                            </button>
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -905,6 +1021,157 @@ export default function AdminDashboard({ initialInfo, initialProjects, initialMe
 
         </section>
       </main>
+
+      {/* FULL-SCREEN EDIT PROJECT OVERLAY */}
+      {editingProject && (
+        <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-2xl overflow-y-auto p-4 md:p-12 flex items-start md:items-center justify-center animate-fadeIn">
+          <div className="w-full max-w-3xl bg-neutral-950/90 border border-white/10 p-6 md:p-10 rounded relative shadow-2xl">
+            {/* Close Button */}
+            <button
+              onClick={() => { setEditingProject(null); setEditStatus('idle'); }}
+              className="absolute top-5 right-5 p-2 rounded-full border border-white/10 bg-white/5 text-white/60 hover:text-white hover:border-white hover:scale-105 transition-all duration-300 cursor-pointer focus:outline-none z-30"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <div className="mb-6">
+              <span className="text-[9px] tracking-[0.3em] text-white/40 uppercase block mb-1">[ EDIT PROJECT ]</span>
+              <h3 className="text-sm font-bold uppercase tracking-widest text-white">{editingProject.title}</h3>
+            </div>
+
+            <form onSubmit={handleEditSubmit} className="flex flex-col gap-4 text-xs">
+              {/* Current & Replacement Media */}
+              <div className="border border-white/10 bg-black/30 rounded p-4 flex flex-col md:flex-row gap-6 items-center">
+                <div className="w-32 h-24 rounded overflow-hidden border border-white/10 bg-[#111] flex-shrink-0">
+                  {editingProject.media_type === 'video' ? (
+                    <video src={editingProject.image_url} muted playsInline className="w-full h-full object-cover" />
+                  ) : (
+                    <img src={editingProject.image_url} alt="Current" className="w-full h-full object-cover" />
+                  )}
+                </div>
+                <div className="flex-1 flex flex-col gap-2 w-full">
+                  <label className="text-[9px] uppercase text-white/55 tracking-wider font-bold">
+                    [ REPLACE MEDIA — UPLOAD NEW IMAGE OR VIDEO ]
+                  </label>
+                  <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
+                    <input
+                      type="file"
+                      accept="image/*,video/*"
+                      id="edit-file-input"
+                      className="hidden"
+                      onChange={handleEditFileSelect}
+                    />
+                    <label
+                      htmlFor="edit-file-input"
+                      className="cursor-pointer border border-white/20 bg-white/5 hover:bg-white/10 transition px-4 py-2 text-center rounded text-[9px] uppercase font-bold tracking-widest flex items-center justify-center gap-2"
+                    >
+                      <UploadCloud className="w-3.5 h-3.5" /> BROWSE REPLACEMENT
+                    </label>
+                  </div>
+                  {editFile && (
+                    <span className="text-[8px] text-green-400 uppercase font-mono block mt-1 flex items-center gap-2">
+                      {editFile.type.startsWith('video/') ? <Film className="w-3 h-3" /> : <Camera className="w-3 h-3" />}
+                      NEW: {editFile.name} ({(editFile.size / (1024 * 1024)).toFixed(2)} MB)
+                    </span>
+                  )}
+                  {!editFile && (
+                    <span className="text-[8px] text-white/30 uppercase font-mono block mt-1">
+                      LEAVE EMPTY TO KEEP CURRENT {editingProject.media_type.toUpperCase()}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Edit Fields */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="flex flex-col gap-1">
+                  <label className="text-[9px] uppercase text-white/50 tracking-wider font-bold">TITLE</label>
+                  <input
+                    type="text"
+                    value={editData.title}
+                    onChange={(e) => setEditData(prev => ({ ...prev, title: e.target.value }))}
+                    className="bg-white/5 border border-white/10 rounded px-3 py-2.5 text-white focus:outline-none focus:border-white uppercase text-xs"
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-[9px] uppercase text-white/50 tracking-wider font-bold">CLIENT</label>
+                  <input
+                    type="text"
+                    value={editData.client}
+                    onChange={(e) => setEditData(prev => ({ ...prev, client: e.target.value }))}
+                    className="bg-white/5 border border-white/10 rounded px-3 py-2.5 text-white focus:outline-none focus:border-white uppercase text-xs"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="flex flex-col gap-1">
+                  <label className="text-[9px] uppercase text-white/50 tracking-wider font-bold">YEAR</label>
+                  <input
+                    type="number"
+                    value={editData.year}
+                    onChange={(e) => setEditData(prev => ({ ...prev, year: parseInt(e.target.value) || 2026 }))}
+                    className="bg-white/5 border border-white/10 rounded px-3 py-2.5 text-white focus:outline-none focus:border-white text-xs"
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-[9px] uppercase text-white/50 tracking-wider font-bold">SCALE</label>
+                  <input
+                    type="text"
+                    value={editData.scale}
+                    onChange={(e) => setEditData(prev => ({ ...prev, scale: e.target.value }))}
+                    className="bg-white/5 border border-white/10 rounded px-3 py-2.5 text-white focus:outline-none focus:border-white uppercase text-xs"
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-[9px] uppercase text-white/50 tracking-wider font-bold">LOCATION</label>
+                  <input
+                    type="text"
+                    value={editData.location}
+                    onChange={(e) => setEditData(prev => ({ ...prev, location: e.target.value }))}
+                    className="bg-white/5 border border-white/10 rounded px-3 py-2.5 text-white focus:outline-none focus:border-white uppercase text-xs"
+                  />
+                </div>
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-[9px] uppercase text-white/50 tracking-wider font-bold">DESCRIPTION</label>
+                <textarea
+                  rows={3}
+                  value={editData.description}
+                  onChange={(e) => setEditData(prev => ({ ...prev, description: e.target.value }))}
+                  className="bg-white/5 border border-white/10 rounded px-3 py-2 text-white focus:outline-none focus:border-white resize-none text-xs uppercase"
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-[9px] uppercase text-white/50 tracking-wider font-bold">MATERIALS</label>
+                <input
+                  type="text"
+                  value={editData.materials}
+                  onChange={(e) => setEditData(prev => ({ ...prev, materials: e.target.value }))}
+                  className="bg-white/5 border border-white/10 rounded px-3 py-2.5 text-white focus:outline-none focus:border-white uppercase text-xs"
+                />
+              </div>
+
+              {editStatus === 'error' && (
+                <span className="text-[9px] text-red-400 font-bold uppercase">{editError}</span>
+              )}
+
+              <button
+                type="submit"
+                disabled={editStatus === 'saving'}
+                className="w-full flex items-center justify-center gap-2 mt-2 bg-white text-black py-3 px-4 font-bold tracking-widest hover:bg-neutral-200 transition-all rounded disabled:bg-neutral-600 disabled:text-neutral-400 cursor-pointer focus:outline-none uppercase"
+              >
+                {editStatus === 'saving' ? (
+                  <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> SAVING CHANGES...</>
+                ) : editStatus === 'success' ? (
+                  <><CheckCircle className="w-3.5 h-3.5 text-green-600" /> PROJECT UPDATED</>
+                ) : (
+                  <><Save className="w-3.5 h-3.5" /> SAVE PROJECT CHANGES</>
+                )}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

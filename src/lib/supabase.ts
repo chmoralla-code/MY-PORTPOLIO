@@ -143,16 +143,32 @@ export const supabase = {
   },
 
   async getContactMessages(): Promise<ContactMessage[]> {
-    return supabaseFetch('/rest/v1/contact_messages?order=created_at.desc', {
-      method: 'GET',
-      next: { revalidate: 0 }
-    });
+    try {
+      return await supabaseFetch('/rest/v1/contact_messages?order=created_at.desc', {
+        method: 'GET',
+        next: { revalidate: 0 }
+      });
+    } catch (e) {
+      console.error('Error fetching contact messages:', e);
+      return [];
+    }
   },
 
   async markMessageAsRead(id: string): Promise<ContactMessage[]> {
     return supabaseFetch(`/rest/v1/contact_messages?id=eq.${id}`, {
       method: 'PATCH',
       body: JSON.stringify({ read: true }),
+      headers: {
+        'Prefer': 'return=representation'
+      }
+    });
+  },
+
+  // Update an existing project's metadata
+  async updateProject(id: string, updates: Partial<Project>): Promise<Project[]> {
+    return supabaseFetch(`/rest/v1/projects?id=eq.${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(updates),
       headers: {
         'Prefer': 'return=representation'
       }
