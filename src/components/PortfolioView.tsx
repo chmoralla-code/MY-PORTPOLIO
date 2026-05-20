@@ -100,7 +100,7 @@ class SonicEngine {
       this.ctx.resume();
     }
 
-    const targetGain = muted ? 0.0 : 1.0; // 100% full background volume
+    const targetGain = muted ? 0.0 : 0.7; // 70% background volume
     this.ambientGain.gain.setTargetAtTime(targetGain, this.ctx.currentTime, 1.5); // Warm slow fade-in
   }
 
