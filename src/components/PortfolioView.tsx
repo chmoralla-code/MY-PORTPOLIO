@@ -522,15 +522,30 @@ export default function PortfolioView({ initialInfo, initialProjects }: Portfoli
     return 'SCALE 1:100 [STRUCTURAL BLUEPRINTS]';
   };
 
-  // Clamped drifting calculator for columns:
-  // Odd-indexed columns (Col 1, 3, 5) translate upwards.
-  // Even-indexed columns (Col 2, 4) translate downwards.
+  // Clamped drifting calculator for columns
   const getTranslationY = (idx: number) => {
     const isOdd = idx % 2 === 0;
     const factor = isOdd ? 0.12 : -0.08;
     const translation = showcaseOffset * factor;
-    // Clamp to protect layout boundaries
     return Math.max(-80, Math.min(80, translation));
+  };
+
+  // Calculate relative normalized coordinates for 3D tilt (-0.5 to 0.5)
+  const getHeroPortraitStyle = () => {
+    if (typeof window === 'undefined') return {};
+    const normX = (cursorPos.x / window.innerWidth) - 0.5;
+    const normY = (cursorPos.y / window.innerHeight) - 0.5;
+    
+    // Calculate tilt angles (max 12 degrees) and translates (max 8px)
+    const rotateX = -normY * 12;
+    const rotateY = normX * 12;
+    const translateX = normX * 8;
+    const translateY = normY * 8;
+    
+    return {
+      transform: `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) translate3d(${translateX}px, ${translateY}px, 0)`,
+      transition: 'transform 0.15s ease-out'
+    };
   };
 
   return (
@@ -571,19 +586,6 @@ export default function PortfolioView({ initialInfo, initialProjects }: Portfoli
           </div>
         </div>
       )}
-
-      {/* 2. DYNAMIC CUSTOM INTERACTIVE CURSOR */}
-      <div 
-        className={`fixed pointer-events-none z-50 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/45 hidden lg:block transition-all duration-300 ease-out ${
-          isCursorHovering ? 'w-20 h-20 bg-white/5 border-white border-dashed scale-110 blur-[1px]' : 'w-7 h-7'
-        }`}
-        style={{
-          left: `${cursorPos.x}px`,
-          top: `${cursorPos.y}px`
-        }}
-      >
-        <div className="absolute inset-0 m-auto w-1 h-1 bg-white rounded-full" />
-      </div>
 
       {/* 3. DYNAMIC CSS PHOTOGRAPHIC NOISE / GRAIN COVER */}
       <div className="fixed inset-0 pointer-events-none z-40 opacity-[0.02] bg-noise bg-repeat" />
@@ -671,25 +673,92 @@ export default function PortfolioView({ initialInfo, initialProjects }: Portfoli
 
       {/* 8. MAIN VIEWPORT CONTAINERS */}
       <main className="w-full">
-        {/* VIEWPORT PANEL 00: IMMERSIVE HERO COPY */}
-        <section className="w-full h-screen flex flex-col justify-center relative px-6 md:px-24 select-none">
-          <div className="max-w-4xl z-10 select-none">
-            <span className="text-white/40 text-[9px] tracking-[0.3em] uppercase mb-4 block font-bold">
-              [ THE LIVING DIGITAL WORKSPACE ]
-            </span>
-            <h1 className="text-3xl md:text-6xl font-light leading-tight tracking-wide text-white uppercase select-text pr-2 block mb-6 font-sans">
-              CYRHIEL MORALLA // FRESH GRADUATE
-            </h1>
-            <p className="text-sm md:text-base text-white/55 tracking-wider uppercase leading-relaxed max-w-2xl mb-12 select-text font-mono">
-              {info.poetry || info.hero_subtitle}
-            </p>
-            
-            <button 
-              onClick={() => scrollToPanel(1)}
-              className="flex items-center gap-3 text-white/40 hover:text-white cursor-pointer transition-all duration-500 text-[10px] tracking-[0.3em] w-fit focus:outline-none font-bold uppercase"
-            >
-              DISCOVER BLUEPRINTS <ArrowDown className="w-3.5 h-3.5 animate-bounce" />
-            </button>
+        {/* VIEWPORT PANEL 00: IMMERSIVE HERO COPY & INTERACTIVE PORTRAIT */}
+        <section className="w-full h-screen flex items-center relative px-6 md:px-12 lg:px-24 select-none">
+          <div className="w-full max-w-[90vw] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12 items-center z-10 pt-16 md:pt-20">
+            {/* Left Column: stark typography */}
+            <div className="lg:col-span-7 flex flex-col justify-center text-left select-none">
+              <span className="text-white/40 text-[9px] tracking-[0.3em] uppercase mb-4 block font-bold">
+                [ THE LIVING DIGITAL WORKSPACE ]
+              </span>
+              <h1 className="text-3xl md:text-5xl lg:text-6xl font-light leading-none tracking-wide text-white uppercase select-text pr-2 block mb-6 font-sans">
+                CYRHIEL MORALLA
+              </h1>
+              <span className="text-white/60 text-[10px] tracking-[0.25em] uppercase mb-6 block font-bold font-mono">
+                // FRESH GRADUATE // LIVING ARCHITECTURE
+              </span>
+              <p className="text-xs md:text-sm text-white/55 tracking-wider uppercase leading-relaxed max-w-2xl mb-12 select-text font-mono">
+                {info.poetry || info.hero_subtitle}
+              </p>
+              
+              <button 
+                onClick={() => scrollToPanel(1)}
+                className="flex items-center gap-3 text-white/40 hover:text-white cursor-pointer transition-all duration-500 text-[10px] tracking-[0.3em] w-fit focus:outline-none font-bold uppercase"
+              >
+                DISCOVER BLUEPRINTS <ArrowDown className="w-3.5 h-3.5 animate-bounce" />
+              </button>
+            </div>
+
+            {/* Right Column: High-Fashion Interactive HUD Portrait */}
+            <div className="lg:col-span-5 flex justify-center lg:justify-end select-none">
+              <div 
+                className="relative w-72 h-[420px] md:w-80 md:h-[480px] rounded-[3rem] border border-white/10 bg-[#0c0c0e]/40 p-4 backdrop-blur-md shadow-2xl overflow-hidden group cursor-pointer"
+                style={getHeroPortraitStyle()}
+              >
+                {/* Tactical CAD grid lines overlay */}
+                <div 
+                  className="absolute inset-0 pointer-events-none opacity-[0.06] z-10"
+                  style={{
+                    backgroundImage: 'linear-gradient(rgba(255,255,255,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.08) 1px, transparent 1px)',
+                    backgroundSize: '16px 16px'
+                  }}
+                />
+                
+                {/* Tech scanline animation */}
+                <div className="absolute top-0 left-0 w-full h-[2px] bg-white/20 blur-[1px] animate-scan z-10 pointer-events-none" />
+
+                {/* Corner Crosshairs */}
+                <div className="absolute top-4 left-4 z-20 text-white/35 font-bold text-[8px]">+</div>
+                <div className="absolute top-4 right-4 z-20 text-white/35 font-bold text-[8px]">+</div>
+                <div className="absolute bottom-4 left-4 z-20 text-white/35 font-bold text-[8px]">+</div>
+                <div className="absolute bottom-4 right-4 z-20 text-white/35 font-bold text-[8px]">+</div>
+
+                {/* Top Readout */}
+                <div className="absolute top-4 left-0 w-full text-center z-20 font-mono text-[7px] text-white/30 uppercase tracking-[0.25em] font-bold">
+                  [ IDENTITY: CORE_SOUL_0965 ]
+                </div>
+
+                {/* Bottom Readout */}
+                <div className="absolute bottom-4 left-0 w-full text-center z-20 font-mono text-[7px] text-white/30 uppercase tracking-[0.25em] font-bold">
+                  [ STATUS: ARCHITECT // STABLE ]
+                </div>
+
+                {/* Portrait Image Block */}
+                <div className="w-full h-full rounded-[2.5rem] overflow-hidden relative border border-white/5">
+                  <img
+                    src="/profile.png"
+                    alt="Cyrhiel Moralla"
+                    className="w-full h-full object-cover grayscale contrast-125 scale-100 group-hover:scale-105 group-hover:grayscale-0 group-hover:contrast-110 transition-all duration-700 ease-out"
+                  />
+                  {/* Neon radial glow behind figure */}
+                  <div className="absolute inset-0 bg-radial-gradient from-transparent via-black/10 to-black/80 opacity-60" />
+                  
+                  {/* Elegant concrete overlay layer */}
+                  <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-10 transition-opacity duration-500 pointer-events-none mix-blend-overlay" />
+                </div>
+
+                {/* Interactive HUD Spec Cards sliding in from sides on hover */}
+                <div className="absolute top-1/4 left-6 z-30 transition-all duration-500 transform -translate-x-8 opacity-0 group-hover:translate-x-0 group-hover:opacity-100 bg-[#070707]/90 backdrop-blur-md border border-white/10 px-3 py-1.5 rounded-lg font-mono text-[7px] uppercase tracking-wider text-left leading-relaxed">
+                  <span className="text-white/40 block">[ ORIGIN ]</span>
+                  <span className="text-white font-bold">BOHOL, PH</span>
+                </div>
+
+                <div className="absolute bottom-1/4 right-6 z-30 transition-all duration-500 transform translate-x-8 opacity-0 group-hover:translate-x-0 group-hover:opacity-100 bg-[#070707]/90 backdrop-blur-md border border-white/10 px-3 py-1.5 rounded-lg font-mono text-[7px] uppercase tracking-wider text-left leading-relaxed">
+                  <span className="text-white/40 block">[ DEPTH ]</span>
+                  <span className="text-white font-bold">GRID_ENG: 60FPS</span>
+                </div>
+              </div>
+            </div>
           </div>
         </section>
 

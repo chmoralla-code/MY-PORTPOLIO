@@ -333,6 +333,12 @@ export default function BackgroundCanvas() {
       primaryUniforms.uMouse.value = currentMouse;
       secondaryUniforms.uMouse.value = currentMouse;
 
+      // Rotate/tilt the mountain ranges in 3D to organically follow cursor movement
+      primaryLattice.rotation.y = mouseRef.current.x * 0.12;
+      primaryLattice.rotation.x = -mouseRef.current.y * 0.08;
+      secondaryLattice.rotation.y = mouseRef.current.x * 0.12;
+      secondaryLattice.rotation.x = -mouseRef.current.y * 0.08;
+
       // Parallax camera slide based on cursor coordinates (Desktop only)
       if (!isMobile) {
         camera.position.x = mouseRef.current.x * 2.8;
