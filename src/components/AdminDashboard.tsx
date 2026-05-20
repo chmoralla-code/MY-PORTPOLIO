@@ -377,8 +377,15 @@ export default function AdminDashboard({ initialInfo, initialProjects, initialMe
       });
 
       if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.message || 'File upload failed');
+        let errorMsg = 'File upload failed';
+        try {
+          const err = await res.json();
+          errorMsg = err.message || errorMsg;
+        } catch {
+          const text = await res.text();
+          errorMsg = text || `Upload failed (HTTP ${res.status})`;
+        }
+        throw new Error(errorMsg);
       }
 
       const data = await res.json();
@@ -516,8 +523,15 @@ export default function AdminDashboard({ initialInfo, initialProjects, initialMe
       });
 
       if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.message || 'Update failed');
+        let errorMsg = 'Update failed';
+        try {
+          const err = await res.json();
+          errorMsg = err.message || errorMsg;
+        } catch {
+          const text = await res.text();
+          errorMsg = text || `Update failed (HTTP ${res.status})`;
+        }
+        throw new Error(errorMsg);
       }
 
       const data = await res.json();

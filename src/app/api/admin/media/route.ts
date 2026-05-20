@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 
+// Allow extended processing time for large video uploads
+export const maxDuration = 60;
+
 export async function POST(request: Request) {
   try {
     const formData = await request.formData();
@@ -17,6 +20,15 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { message: 'Missing required project data fields or file.' },
         { status: 400 }
+      );
+    }
+
+    // Enforce 50MB size limit with a clear error message
+    const MAX_SIZE = 50 * 1024 * 1024; // 50MB
+    if (file.size > MAX_SIZE) {
+      return NextResponse.json(
+        { message: `File too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Maximum allowed is 50MB.` },
+        { status: 413 }
       );
     }
 
@@ -55,3 +67,4 @@ export async function POST(request: Request) {
     );
   }
 }
+
