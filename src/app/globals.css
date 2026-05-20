@@ -79,3 +79,51 @@ body {
   animation: scan 3.5s linear infinite;
 }
 
+/* Dynamic Chromatic Glitch Aberration styling */
+@keyframes glitch-overlay-anim {
+  0% {
+    clip-path: inset(40% 0 61% 0);
+    transform: skew(0.3deg);
+    filter: hue-rotate(90deg) contrast(1.2);
+  }
+  20% {
+    clip-path: inset(92% 0 1% 0);
+    transform: skew(-0.5deg);
+    filter: hue-rotate(180deg) saturate(1.5);
+  }
+  40% {
+    clip-path: inset(15% 0 80% 0);
+    transform: skew(0.5deg);
+    filter: hue-rotate(0deg);
+  }
+  60% {
+    clip-path: inset(80% 0 5% 0);
+    transform: skew(-0.3deg);
+    filter: hue-rotate(270deg) contrast(1.5);
+  }
+  80% {
+    clip-path: inset(5% 0 92% 0);
+    transform: skew(0.8deg);
+    filter: hue-rotate(90deg);
+  }
+  100% {
+    clip-path: inset(40% 0 61% 0);
+    transform: skew(0deg);
+    filter: none;
+  }
+}
+
+.animate-glitch-overlay {
+  animation: glitch-overlay-anim 0.3s steps(2) infinite;
+}
+
+@keyframes scanlines-anim {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(100%); }
+}
+
+.animate-scanlines {
+  animation: scanlines-anim 8s linear infinite;
+}
+
+

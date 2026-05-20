@@ -21,6 +21,7 @@ class SonicEngine {
   private voices: Array<{ osc: OscillatorNode; gain: GainNode }> = [];
   private lfo: OscillatorNode | null = null;
   public isMuted: boolean = true;
+  public analyser: AnalyserNode | null = null;
 
   constructor() {
     // Web Audio API context initialized on first user interaction
@@ -86,7 +87,10 @@ class SonicEngine {
     lfoGain.connect(lpFilter.frequency);
     this.lfo.start();
 
-    lpFilter.connect(this.ambientGain);
+    this.analyser = this.ctx.createAnalyser();
+    this.analyser.fftSize = 256;
+    lpFilter.connect(this.analyser);
+    this.analyser.connect(this.ambientGain);
     this.ambientGain.connect(this.ctx.destination);
   }
 
@@ -229,6 +233,124 @@ const parseMaterials = (materialsString?: string) => {
     else if (part.startsWith('THERMAL: ')) thermal = part.replace('THERMAL: ', '');
   });
   return { composition, density, thermal };
+};
+
+// ==========================================
+// REAL-TIME VECTOR AUDIO OSCILLOSCOPE
+// ==========================================
+interface AudioVisualizerProps {
+  audioEngine: React.MutableRefObject<SonicEngine | null>;
+  isMuted: boolean;
+}
+
+const AudioVisualizer: React.FC<AudioVisualizerProps> = ({ audioEngine, isMuted }) => {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    let animationFrameId: number;
+    const bufferLength = 128;
+    const dataArray = new Uint8Array(bufferLength);
+
+    const draw = () => {
+      animationFrameId = requestAnimationFrame(draw);
+
+      const width = canvas.width;
+      const height = canvas.height;
+
+      // Draw background grid base
+      ctx.fillStyle = '#050505';
+      ctx.fillRect(0, 0, width, height);
+
+      // Subtle drafting layout gridlines
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+      ctx.lineWidth = 0.5;
+      
+      // Horizontal baseline
+      ctx.beginPath();
+      ctx.moveTo(0, height / 2);
+      ctx.lineTo(width, height / 2);
+      ctx.stroke();
+
+      // Vertical tick gridlines
+      for (let x = 0; x < width; x += 15) {
+        ctx.beginPath();
+        ctx.moveTo(x, height / 2 - 3);
+        ctx.lineTo(x, height / 2 + 3);
+        ctx.stroke();
+      }
+
+      const activeEngine = audioEngine.current;
+      const analyser = activeEngine?.analyser;
+
+      if (!isMuted && activeEngine && analyser && activeEngine.isMuted === false) {
+        analyser.getByteTimeDomainData(dataArray);
+
+        ctx.strokeStyle = '#00ff66';
+        ctx.lineWidth = 1.2;
+        ctx.shadowBlur = 4;
+        ctx.shadowColor = '#00ff66';
+        ctx.beginPath();
+
+        const sliceWidth = width / bufferLength;
+        let x = 0;
+
+        for (let i = 0; i < bufferLength; i++) {
+          const v = dataArray[i] / 128.0; // 0.0 to 2.0
+          const y = (v * height) / 2;
+
+          if (i === 0) {
+            ctx.moveTo(x, y);
+          } else {
+            ctx.lineTo(x, y);
+          }
+
+          x += sliceWidth;
+        }
+
+        ctx.lineTo(width, height / 2);
+        ctx.stroke();
+        ctx.shadowBlur = 0; // Reset
+      } else {
+        // Muted / Idle state: draw subtle electric digital noise baseline
+        ctx.strokeStyle = 'rgba(0, 255, 102, 0.25)';
+        ctx.lineWidth = 0.8;
+        ctx.beginPath();
+
+        let x = 0;
+        const sliceWidth = 2;
+        ctx.moveTo(0, height / 2);
+        for (let i = 0; x < width; i++) {
+          const noise = (Math.random() - 0.5) * 2.5; // very subtle digital jitter
+          ctx.lineTo(x, height / 2 + noise);
+          x += sliceWidth;
+        }
+        ctx.stroke();
+      }
+    };
+
+    draw();
+
+    return () => {
+      cancelAnimationFrame(animationFrameId);
+    };
+  }, [audioEngine, isMuted]);
+
+  return (
+    <div className="flex items-center gap-2 border border-white/10 px-3 py-1 rounded bg-[#09090b]/80 backdrop-blur-md">
+      <span className="text-[7px] text-white/30 tracking-widest font-mono uppercase font-bold">[ Wv_OSC ]</span>
+      <canvas 
+        ref={canvasRef} 
+        width={100} 
+        height={18} 
+        className="w-[100px] h-[18px] opacity-80"
+      />
+    </div>
+  );
 };
 
 // ==========================================
@@ -444,6 +566,8 @@ export default function PortfolioView({ initialInfo, initialProjects }: Portfoli
   const [isContactOpen, setIsContactOpen] = useState(false);
   const [activeSection, setActiveSection] = useState(0);
   const [isMuted, setIsMuted] = useState(true);
+  const [terminalLog, setTerminalLog] = useState('SYSTEM BOOT INITIALIZATION... COMPLETE');
+  const [isGlitching, setIsGlitching] = useState(false);
 
   // Kinetic Typography Loading States
   const [isLoading, setIsLoading] = useState(true);
@@ -564,10 +688,26 @@ export default function PortfolioView({ initialInfo, initialProjects }: Portfoli
     return () => clearInterval(interval);
   }, [isLoading]);
 
-  // 3. Dynamic Cursor Tracker
+  // 3. Dynamic Cursor Tracker & Telemetry Logger
+  const triggerGlitch = () => {
+    setIsGlitching(true);
+    setTimeout(() => setIsGlitching(false), 350);
+  };
+
   useEffect(() => {
+    let lastTime = 0;
     const handleMouseMove = (e: MouseEvent) => {
       setCursorPos({ x: e.clientX, y: e.clientY });
+      
+      const now = Date.now();
+      if (now - lastTime > 80) { // 80ms throttle is highly responsive but prevents main-thread block
+        const normX = (e.clientX / window.innerWidth) - 0.5;
+        const normY = (e.clientY / window.innerHeight) - 0.5;
+        const xAngle = normX * 12;
+        const yAngle = -normY * 12;
+        setTerminalLog(`PARALLAX_CAM: [X: ${xAngle.toFixed(1)}°, Y: ${yAngle.toFixed(1)}°] // TELEMETRY: ACTIVE`);
+        lastTime = now;
+      }
     };
     window.addEventListener('mousemove', handleMouseMove);
     return () => window.removeEventListener('mousemove', handleMouseMove);
@@ -622,6 +762,7 @@ export default function PortfolioView({ initialInfo, initialProjects }: Portfoli
 
     audio.current?.click();
     setFormStatus('sending');
+    setTerminalLog('DISPATCHING ENQUIRY VIA ENCRYPTED DECK...');
     try {
       const res = await fetch('/api/contact', {
         method: 'POST',
@@ -632,6 +773,7 @@ export default function PortfolioView({ initialInfo, initialProjects }: Portfoli
       if (!res.ok) throw new Error('Message dispatch failed');
 
       setFormStatus('success');
+      setTerminalLog('AUTOMATION MESSAGE DISPATCH SUCCESSFUL // CODE_200');
       audio.current?.swoop();
       setFormData({ name: '', email: '', details: '' });
       setTimeout(() => {
@@ -641,6 +783,7 @@ export default function PortfolioView({ initialInfo, initialProjects }: Portfoli
     } catch (err) {
       console.error('Contact submission error:', err);
       setFormStatus('error');
+      setTerminalLog('SYSTEM DERAILMENT: DISPATCH FAILURE // CODE_500');
     }
   };
 
@@ -764,12 +907,16 @@ export default function PortfolioView({ initialInfo, initialProjects }: Portfoli
 
       {/* 6. BOTTOM HUD DECORATIVE BAR */}
       <div className="fixed bottom-0 left-0 w-full z-30 px-6 py-6 md:px-12 md:py-8 flex justify-between items-center pointer-events-none">
-        <div className="pointer-events-auto hidden md:block">
+        <div className="pointer-events-auto hidden md:flex items-center gap-6 select-none">
           <span className="text-[9px] tracking-[0.25em] text-white/30 uppercase font-bold">
             [ COORDINATES CELL ] {loadCoords}
           </span>
+          <span className="text-[9px] tracking-[0.25em] text-[#00ff66] font-mono animate-pulse uppercase max-w-md truncate">
+            {terminalLog}
+          </span>
         </div>
-        <div className="pointer-events-auto">
+        <div className="pointer-events-auto flex items-center gap-4 select-none">
+          <AudioVisualizer audioEngine={audio} isMuted={isMuted} />
           <span className="text-[9px] tracking-[0.25em] text-white/50 uppercase font-bold">
             {getDraftingScale()}
           </span>
@@ -942,7 +1089,9 @@ export default function PortfolioView({ initialInfo, initialProjects }: Portfoli
                   key={proj.id}
                   onClick={() => {
                     audio.current?.decode();
+                    triggerGlitch();
                     setSelectedProject(proj);
+                    setTerminalLog(`DECODING BLUEPRINT ID: [${proj.id.toString().substring(0, 8)}] ... RENDER COMPLETE`);
                   }}
                   onMouseEnter={() => {
                     audio.current?.tick();
@@ -1016,7 +1165,7 @@ export default function PortfolioView({ initialInfo, initialProjects }: Portfoli
           <div className="w-full max-w-lg bg-neutral-950/80 border border-white/10 p-8 md:p-10 relative overflow-hidden select-text shadow-2xl">
             {/* Close Trigger */}
             <button
-              onClick={() => { audio.current?.click(); setIsContactOpen(false); }}
+              onClick={() => { audio.current?.click(); setIsContactOpen(false); setTerminalLog('AUTOMATION DRAWER TERMINATED... RETURN TO CORE'); }}
               className="absolute top-6 right-6 p-2 rounded-full border border-white/10 bg-white/5 text-white/60 hover:text-white hover:border-white hover:scale-105 transition-all duration-300 cursor-pointer focus:outline-none"
             >
               <X className="w-4 h-4" />
@@ -1123,7 +1272,7 @@ export default function PortfolioView({ initialInfo, initialProjects }: Portfoli
             
             {/* Close Trigger */}
             <button
-              onClick={() => { audio.current?.swoop(); setSelectedProject(null); }}
+              onClick={() => { audio.current?.swoop(); triggerGlitch(); setSelectedProject(null); setTerminalLog('SYSTEM RESET... IDLE CAM SENSOR ON'); }}
               className="absolute top-6 right-6 p-2 rounded-full border border-white/10 bg-white/5 text-white/60 hover:text-white hover:border-white hover:scale-110 transition-all duration-300 cursor-pointer focus:outline-none z-30"
             >
               <X className="w-4 h-4" />
@@ -1189,7 +1338,7 @@ export default function PortfolioView({ initialInfo, initialProjects }: Portfoli
                   VIEW HIGH-RES BLUEPRINT <ArrowUpRight className="w-3.5 h-3.5" />
                 </a>
                 <button
-                  onClick={() => { audio.current?.swoop(); setSelectedProject(null); }}
+                  onClick={() => { audio.current?.swoop(); triggerGlitch(); setSelectedProject(null); setTerminalLog('SYSTEM RESET... IDLE CAM SENSOR ON'); }}
                   className="flex-1 text-center text-[10px] tracking-[0.25em] text-white border border-white/10 hover:border-white/30 hover:bg-white/5 py-3.5 rounded font-bold transition-all duration-300 uppercase"
                 >
                   CLOSE DOCUMENT
@@ -1208,6 +1357,22 @@ export default function PortfolioView({ initialInfo, initialProjects }: Portfoli
                 {/* Subtle blueprint lines overlay */}
                 <div className="absolute inset-0 pointer-events-none border border-white/10" />
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 11. CHROMATIC GLITCH SCANLINE OVERLAY */}
+      {isGlitching && (
+        <div className="fixed inset-0 z-[999] pointer-events-none bg-black/10 animate-glitch-overlay mix-blend-screen flex flex-col justify-between p-6">
+          <div className="absolute inset-0 bg-[radial-gradient(rgba(0,255,102,0.15)_1px,transparent_1px)] bg-[size:16px_16px] opacity-40 animate-pulse" />
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#00ff66]/15 to-transparent animate-scanlines" />
+          <div className="absolute inset-0 flex flex-col justify-center items-center gap-4 text-center">
+            <div className="text-[9px] tracking-[0.4em] text-[#00ff66] font-mono font-bold uppercase animate-bounce">
+              -- CHROMATIC ABERRATION ACTIVE --
+            </div>
+            <div className="text-[12px] tracking-[0.2em] text-white font-mono uppercase bg-black/85 px-4 py-2 border border-[#00ff66]/30">
+              [ DATA SCANLINE GLITCH ]
             </div>
           </div>
         </div>
