@@ -167,6 +167,48 @@ class SonicEngine {
     osc.stop(this.ctx.currentTime + 0.4);
   }
 
+  // High-fidelity sci-fi blueprint decode and scan sound effect
+  public decode() {
+    if (this.isMuted || !this.ctx) return;
+    const now = this.ctx.currentTime;
+    
+    const osc1 = this.ctx.createOscillator();
+    const osc2 = this.ctx.createOscillator();
+    const filter = this.ctx.createBiquadFilter();
+    const gain = this.ctx.createGain();
+    
+    filter.type = 'bandpass';
+    filter.frequency.setValueAtTime(300, now);
+    filter.frequency.exponentialRampToValueAtTime(3200, now + 0.18);
+    filter.frequency.exponentialRampToValueAtTime(200, now + 0.7);
+    filter.Q.setValueAtTime(5.0, now);
+    
+    osc1.type = 'sawtooth';
+    osc1.frequency.setValueAtTime(85, now);
+    osc1.frequency.exponentialRampToValueAtTime(750, now + 0.2);
+    osc1.frequency.exponentialRampToValueAtTime(150, now + 0.7);
+    
+    osc2.type = 'sine';
+    osc2.frequency.setValueAtTime(800, now);
+    osc2.frequency.exponentialRampToValueAtTime(2400, now + 0.15);
+    osc2.frequency.exponentialRampToValueAtTime(350, now + 0.75);
+    
+    gain.gain.setValueAtTime(0.0, now);
+    gain.gain.linearRampToValueAtTime(0.05, now + 0.03); // Fast swell
+    gain.gain.exponentialRampToValueAtTime(0.00001, now + 0.8);  // Slow tail decay
+    
+    osc1.connect(filter);
+    osc2.connect(filter);
+    filter.connect(gain);
+    gain.connect(this.ctx.destination);
+    
+    osc1.start(now);
+    osc2.start(now);
+    
+    osc1.stop(now + 0.85);
+    osc2.stop(now + 0.85);
+  }
+
   // Deep, theatrical Godly Voice Synthesis announcement
   public speakIntro() {
     if (typeof window === 'undefined' || !window.speechSynthesis) return;
@@ -326,6 +368,17 @@ export default function PortfolioView({ initialInfo, initialProjects }: Portfoli
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const showcaseRef = useRef<HTMLDivElement>(null);
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Resize listener to optimize grid drifting on mobile/tablets
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 1024);
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const triggerVoiceIntro = () => {
     if (hasSpoken.current) return;
@@ -524,6 +577,7 @@ export default function PortfolioView({ initialInfo, initialProjects }: Portfoli
 
   // Clamped drifting calculator for columns
   const getTranslationY = (idx: number) => {
+    if (isMobile) return 0;
     const isOdd = idx % 2 === 0;
     const factor = isOdd ? 0.12 : -0.08;
     const translation = showcaseOffset * factor;
@@ -594,29 +648,29 @@ export default function PortfolioView({ initialInfo, initialProjects }: Portfoli
       <BackgroundCanvas />
 
       {/* 5. TOP HUD VIEWPORT HEADER (MAGNETIC HOVER STATE ACTIVE) */}
-      <header className="fixed top-0 left-0 w-full z-30 flex justify-between items-center px-6 py-6 md:px-12 md:py-8 pointer-events-none">
+      <header className="fixed top-0 left-0 w-full z-30 flex justify-between items-center px-4 py-4 md:px-12 md:py-8 pointer-events-none">
         <div className="pointer-events-auto">
           <button 
             onClick={() => scrollToPanel(0)}
-            className="font-bold text-xs uppercase tracking-[0.35em] text-white/80 hover:text-white transition-colors duration-300 focus:outline-none"
+            className="font-bold text-[10px] md:text-xs uppercase tracking-[0.15em] md:tracking-[0.35em] text-white/80 hover:text-white transition-colors duration-300 focus:outline-none"
           >
             CYRHIEL MORALLA
           </button>
         </div>
         
         {/* Sound toggle & Let's talk */}
-        <div className="pointer-events-auto flex items-center gap-4">
+        <div className="pointer-events-auto flex items-center gap-2 md:gap-4">
           <button
             onClick={toggleSound}
-            className="text-[9px] font-bold uppercase tracking-widest px-4 py-2 rounded border border-white/10 bg-black/40 hover:bg-white/5 hover:border-white/30 text-white/60 hover:text-white transition-all duration-300 flex items-center gap-2 cursor-pointer focus:outline-none"
+            className="text-[8px] md:text-[9px] font-bold uppercase tracking-wider md:tracking-widest px-2.5 py-1.5 md:px-4 md:py-2 rounded border border-white/10 bg-black/40 hover:bg-white/5 hover:border-white/30 text-white/60 hover:text-white transition-all duration-300 flex items-center gap-1 md:gap-2 cursor-pointer focus:outline-none"
           >
-            {isMuted ? <><VolumeX className="w-3.5 h-3.5" /> MUTED</> : <><Volume2 className="w-3.5 h-3.5 animate-pulse" /> SONIC</>}
+            {isMuted ? <><VolumeX className="w-3 h-3 md:w-3.5 md:h-3.5" /> MUTED</> : <><Volume2 className="w-3 h-3 md:w-3.5 md:h-3.5 animate-pulse" /> SONIC</>}
           </button>
           <button
             onClick={() => { audio.current?.click(); setIsContactOpen(true); }}
-            className="text-[9px] md:text-xs font-bold uppercase tracking-widest px-5 py-2.5 rounded-full border border-white/20 bg-black/40 hover:bg-white hover:text-black hover:border-white hover:scale-105 transition-all duration-500 flex items-center gap-2 cursor-pointer focus:outline-none"
+            className="text-[8px] md:text-xs font-bold uppercase tracking-wider md:tracking-widest px-3 py-2 md:px-5 md:py-2.5 rounded-full border border-white/20 bg-black/40 hover:bg-white hover:text-black hover:border-white hover:scale-105 transition-all duration-500 flex items-center gap-1 md:gap-2 cursor-pointer focus:outline-none"
           >
-            LET'S TALK <ArrowUpRight className="w-3.5 h-3.5" />
+            LET'S TALK <ArrowUpRight className="w-3 h-3 md:w-3.5 md:h-3.5" />
           </button>
         </div>
       </header>
@@ -674,7 +728,7 @@ export default function PortfolioView({ initialInfo, initialProjects }: Portfoli
       {/* 8. MAIN VIEWPORT CONTAINERS */}
       <main className="w-full">
         {/* VIEWPORT PANEL 00: IMMERSIVE HERO COPY & INTERACTIVE PORTRAIT */}
-        <section className="w-full h-screen flex items-center relative px-6 md:px-12 lg:px-24 select-none">
+        <section className="w-full min-h-screen lg:h-screen flex items-center relative px-6 md:px-12 lg:px-24 select-none py-24 lg:py-0">
           <div className="w-full max-w-[90vw] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12 items-center z-10 pt-16 md:pt-20">
             {/* Left Column: stark typography */}
             <div className="lg:col-span-7 flex flex-col justify-center text-left select-none">
@@ -702,7 +756,7 @@ export default function PortfolioView({ initialInfo, initialProjects }: Portfoli
             {/* Right Column: High-Fashion Interactive HUD Portrait */}
             <div className="lg:col-span-5 flex justify-center lg:justify-end select-none">
               <div 
-                className="relative w-72 h-[420px] md:w-80 md:h-[480px] rounded-[3rem] border border-white/10 bg-[#0c0c0e]/40 p-4 backdrop-blur-md shadow-2xl overflow-hidden group cursor-pointer"
+                className="relative w-64 h-[370px] sm:w-72 sm:h-[420px] md:w-80 md:h-[480px] rounded-[2.5rem] md:rounded-[3rem] border border-white/10 bg-[#0c0c0e]/40 p-4 backdrop-blur-md shadow-2xl overflow-hidden group cursor-pointer"
                 style={getHeroPortraitStyle()}
               >
                 {/* Tactical CAD grid lines overlay */}
@@ -806,8 +860,7 @@ export default function PortfolioView({ initialInfo, initialProjects }: Portfoli
                 <div
                   key={proj.id}
                   onClick={() => {
-                    audio.current?.click();
-                    audio.current?.swoop();
+                    audio.current?.decode();
                     setSelectedProject(proj);
                   }}
                   onMouseEnter={() => {
@@ -976,8 +1029,8 @@ export default function PortfolioView({ initialInfo, initialProjects }: Portfoli
 
       {/* 10. FULL-SCREEN OBSIDIAN STRUCTURAL DETAIL DRAWER */}
       {selectedProject && (
-        <div className="fixed inset-0 z-50 bg-[#030303]/98 backdrop-blur-3xl overflow-y-auto p-6 md:p-12 lg:p-16 flex items-center justify-center animate-fadeIn select-text">
-          <div className="w-full max-w-6xl bg-neutral-950/80 border border-white/10 rounded-[2rem] p-8 md:p-12 relative overflow-hidden shadow-2xl flex flex-col lg:flex-row gap-12 lg:gap-16 items-stretch min-h-[75vh]">
+        <div className="fixed inset-0 z-50 bg-[#030303]/98 backdrop-blur-3xl overflow-y-auto p-4 md:p-12 lg:p-16 flex items-start md:items-center justify-center animate-fadeIn select-text">
+          <div className="w-full max-w-6xl bg-neutral-950/80 border border-white/10 rounded-[1.5rem] md:rounded-[2rem] p-5 md:p-12 my-auto mt-12 md:mt-0 relative overflow-hidden shadow-2xl flex flex-col lg:flex-row gap-12 lg:gap-16 items-stretch min-h-[75vh]">
             {/* Decorative Blueprint grid background */}
             <div 
               className="absolute inset-0 pointer-events-none opacity-[0.03]"
@@ -989,32 +1042,32 @@ export default function PortfolioView({ initialInfo, initialProjects }: Portfoli
             
             {/* Close Trigger */}
             <button
-              onClick={() => { audio.current?.click(); audio.current?.swoop(); setSelectedProject(null); }}
-              className="absolute top-8 right-8 p-3 rounded-full border border-white/10 bg-white/5 text-white/60 hover:text-white hover:border-white hover:scale-110 transition-all duration-300 cursor-pointer focus:outline-none z-30"
+              onClick={() => { audio.current?.swoop(); setSelectedProject(null); }}
+              className="absolute top-6 right-6 p-2 rounded-full border border-white/10 bg-white/5 text-white/60 hover:text-white hover:border-white hover:scale-110 transition-all duration-300 cursor-pointer focus:outline-none z-30"
             >
-              <X className="w-5 h-5" />
+              <X className="w-4 h-4" />
             </button>
 
             {/* Left panel: CAD data display & details */}
             <div className="w-full lg:w-1/2 flex flex-col justify-between z-10">
               <div>
-                <div className="flex gap-4 text-[9px] tracking-[0.25em] text-white/40 mb-6 uppercase font-bold border-b border-white/5 pb-4">
+                <div className="flex gap-4 text-[9px] tracking-[0.25em] text-white/40 mb-6 uppercase font-bold border-b border-white/5 pb-4 mt-4 lg:mt-0">
                   <span>[ SYSTEM SPECIFICATION ]</span>
                   <span>{selectedProject.client}</span>
                   <span>/</span>
                   <span>{selectedProject.year}</span>
                 </div>
 
-                <h3 className="text-2xl md:text-4xl font-light tracking-wide text-white uppercase mb-8 leading-snug font-sans">
+                <h3 className="text-xl md:text-4xl font-light tracking-wide text-white uppercase mb-6 md:mb-8 leading-snug font-sans">
                   {selectedProject.title}
                 </h3>
 
-                <p className="text-xs md:text-sm tracking-wider text-white/70 leading-relaxed mb-8 uppercase font-mono max-w-lg">
+                <p className="text-xs md:text-sm tracking-wider text-white/70 leading-relaxed mb-6 md:mb-8 uppercase font-mono max-w-lg">
                   {selectedProject.description}
                 </p>
 
                 {/* Expanded Engineering Specs Matrix */}
-                <div className="grid grid-cols-2 gap-6 border-t border-b border-white/10 py-8 mb-8 uppercase text-[10px] tracking-wider font-mono">
+                <div className="grid grid-cols-2 gap-4 md:gap-6 border-t border-b border-white/10 py-6 md:py-8 mb-6 md:mb-8 uppercase text-[10px] tracking-wider font-mono">
                   <div>
                     <span className="text-white/35 block text-[7px] mb-1.5">[ DRAFTING SCALE ]</span>
                     <span className="text-white font-bold">{selectedProject.scale || '1:100'}</span>
@@ -1040,7 +1093,7 @@ export default function PortfolioView({ initialInfo, initialProjects }: Portfoli
                 </div>
               </div>
 
-              <div className="flex flex-col sm:flex-row gap-4 border-t border-white/5 pt-6">
+              <div className="flex flex-col sm:flex-row gap-4 border-t border-white/5 pt-6 mb-6 lg:mb-0">
                 <a
                   href={selectedProject.image_url}
                   target="_blank"
@@ -1050,7 +1103,7 @@ export default function PortfolioView({ initialInfo, initialProjects }: Portfoli
                   VIEW HIGH-RES BLUEPRINT <ArrowUpRight className="w-3.5 h-3.5" />
                 </a>
                 <button
-                  onClick={() => { audio.current?.click(); setSelectedProject(null); }}
+                  onClick={() => { audio.current?.swoop(); setSelectedProject(null); }}
                   className="flex-1 text-center text-[10px] tracking-[0.25em] text-white border border-white/10 hover:border-white/30 hover:bg-white/5 py-3.5 rounded font-bold transition-all duration-300 uppercase"
                 >
                   CLOSE DOCUMENT
@@ -1060,7 +1113,7 @@ export default function PortfolioView({ initialInfo, initialProjects }: Portfoli
 
             {/* Right panel: Blueprint visual block */}
             <div className="w-full lg:w-1/2 flex items-center justify-center z-10 relative">
-              <div className="w-full h-full min-h-[350px] lg:min-h-0 bg-neutral-900 border border-white/10 overflow-hidden relative rounded-2xl group flex items-center justify-center">
+              <div className="w-full h-full min-h-[250px] sm:min-h-[350px] lg:min-h-0 bg-neutral-900 border border-white/10 overflow-hidden relative rounded-[1.25rem] md:rounded-2xl group flex items-center justify-center">
                 <OptimizedMedia
                   src={selectedProject.image_url}
                   alt={selectedProject.title}
