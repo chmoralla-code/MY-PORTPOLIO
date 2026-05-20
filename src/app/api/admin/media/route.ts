@@ -9,6 +9,9 @@ export async function POST(request: Request) {
     const description = formData.get('description') as string;
     const yearStr = formData.get('year') as string;
     const client = formData.get('client') as string;
+    const scale = formData.get('scale') as string;
+    const location = formData.get('location') as string;
+    const materials = formData.get('materials') as string;
 
     if (!file || !title || !description || !client || !yearStr) {
       return NextResponse.json(
@@ -37,7 +40,10 @@ export async function POST(request: Request) {
       image_url: imageUrl,
       year,
       client,
-      media_type: mediaType
+      media_type: mediaType,
+      scale: scale || undefined,
+      location: location || undefined,
+      materials: materials || undefined
     });
 
     return NextResponse.json({ success: true, project });

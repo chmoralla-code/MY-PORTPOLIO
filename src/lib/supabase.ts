@@ -1,4 +1,4 @@
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://tawkmrjtnmgxrurlrdba.supabase.co';
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://hzeqntoxqeylnglkgdnp.supabase.co';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
@@ -7,6 +7,7 @@ export interface PortfolioInfo {
   id: number;
   hero_title: string;
   hero_subtitle: string;
+  poetry: string;
   about_text: string;
   contact_email: string;
   contact_phone: string;
@@ -21,6 +22,9 @@ export interface Project {
   id: string;
   title: string;
   description: string;
+  scale?: string;
+  location?: string;
+  materials?: string;
   image_url: string;
   year: number;
   client: string;

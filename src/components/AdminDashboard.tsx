@@ -14,6 +14,57 @@ interface AdminDashboardProps {
   initialMessages: ContactMessage[];
 }
 
+// ==========================================
+// CLIENT-SIDE CANVAS WEBP PRE-COMPRESSOR
+// ==========================================
+const compressImageToWebP = (file: File, quality = 0.8): Promise<Blob> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 2048;
+        const MAX_HEIGHT = 2048;
+        let width = img.width;
+        let height = img.height;
+        
+        if (width > MAX_WIDTH || height > MAX_HEIGHT) {
+          if (width > height) {
+            height = Math.round((height * MAX_WIDTH) / width);
+            width = MAX_WIDTH;
+          } else {
+            width = Math.round((width * MAX_HEIGHT) / height);
+            height = MAX_HEIGHT;
+          }
+        }
+        
+        canvas.width = width;
+        canvas.height = height;
+        
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          reject(new Error('Canvas context could not be created'));
+          return;
+        }
+        
+        ctx.drawImage(img, 0, 0, width, height);
+        canvas.toBlob((blob) => {
+          if (blob) {
+            resolve(blob);
+          } else {
+            reject(new Error('Canvas toBlob returned null'));
+          }
+        }, 'image/webp', quality);
+      };
+      img.onerror = () => reject(new Error('Image load error'));
+      img.src = event.target?.result as string;
+    };
+    reader.onerror = () => reject(new Error('File reader error'));
+    reader.readAsDataURL(file);
+  });
+};
+
 export default function AdminDashboard({ initialInfo, initialProjects, initialMessages }: AdminDashboardProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'copy' | 'gallery' | 'inbox'>('copy');
@@ -26,6 +77,7 @@ export default function AdminDashboard({ initialInfo, initialProjects, initialMe
   const [copyData, setCopyData] = useState({
     hero_title: initialInfo?.hero_title || '',
     hero_subtitle: initialInfo?.hero_subtitle || '',
+    poetry: initialInfo?.poetry || '',
     about_text: initialInfo?.about_text || '',
     contact_email: initialInfo?.contact_email || '',
     contact_phone: initialInfo?.contact_phone || '',
@@ -40,7 +92,10 @@ export default function AdminDashboard({ initialInfo, initialProjects, initialMe
     title: '',
     description: '',
     year: new Date().getFullYear(),
-    client: ''
+    client: '',
+    scale: '',
+    location: '',
+    materials: ''
   });
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [dragActive, setDragActive] = useState(false);
@@ -127,12 +182,30 @@ export default function AdminDashboard({ initialInfo, initialProjects, initialMe
     setUploadError('');
 
     try {
+      let fileToUpload = selectedFile;
+      
+      // Client-side canvas JPEG-to-WebP pre-compression for images
+      if (selectedFile.type.startsWith('image/')) {
+        setUploadError('COMPRESSING IMAGE MATRIX (WEBP)...');
+        try {
+          const webpBlob = await compressImageToWebP(selectedFile, 0.82);
+          const newName = selectedFile.name.substring(0, selectedFile.name.lastIndexOf('.')) + '.webp';
+          fileToUpload = new File([webpBlob], newName, { type: 'image/webp' });
+        } catch (compressErr) {
+          console.warn('Pre-compression failed, using raw file:', compressErr);
+        }
+      }
+
+      setUploadError('DISPATCHING TO SUPABASE BUCKET...');
       const formData = new FormData();
-      formData.append('file', selectedFile);
+      formData.append('file', fileToUpload);
       formData.append('title', projectData.title);
       formData.append('description', projectData.description);
       formData.append('year', projectData.year.toString());
       formData.append('client', projectData.client);
+      formData.append('scale', projectData.scale);
+      formData.append('location', projectData.location);
+      formData.append('materials', projectData.materials);
 
       const res = await fetch('/api/admin/media', {
         method: 'POST',
@@ -154,7 +227,10 @@ export default function AdminDashboard({ initialInfo, initialProjects, initialMe
         title: '',
         description: '',
         year: new Date().getFullYear(),
-        client: ''
+        client: '',
+        scale: '',
+        location: '',
+        materials: ''
       });
       setSelectedFile(null);
       setUploadStatus('success');
@@ -225,6 +301,21 @@ export default function AdminDashboard({ initialInfo, initialProjects, initialMe
         
         {/* Navigation Sidebar */}
         <aside className="w-full md:w-56 flex flex-col gap-2 flex-shrink-0">
+          {/* Simulated System Status Console */}
+          <div className="border border-white/10 bg-neutral-950/80 p-4 rounded mb-4 text-[9px] uppercase leading-relaxed text-white/40 tracking-wider">
+            <div className="text-white/80 font-bold mb-2 flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-ping" />
+              [ SYS_NODE: ACTIVE ]
+            </div>
+            <div>PROJECT_REF: hzeqntoxqey</div>
+            <div>LATENCY: 42MS // GPU: SHDR</div>
+            <div>PRE_COMPRESS: WEBP [0.82]</div>
+            <div>LIMIT_CEIL: 50MB [MAX]</div>
+            <div className="w-full bg-white/5 h-[3px] mt-3 rounded-full overflow-hidden">
+              <div className="bg-white h-full w-[78%] animate-pulse" />
+            </div>
+          </div>
+
           <button
             onClick={() => setActiveTab('copy')}
             className={`w-full flex items-center gap-3 px-4 py-3 rounded text-[10px] tracking-widest text-left transition-all duration-300 focus:outline-none uppercase ${
@@ -325,11 +416,22 @@ export default function AdminDashboard({ initialInfo, initialProjects, initialMe
                 </div>
 
                 <div className="flex flex-col gap-2">
+                  <label className="text-[9px] uppercase text-white/50 tracking-wider font-bold">HERO SUBTITLE</label>
+                  <input
+                    type="text"
+                    name="hero_subtitle"
+                    value={copyData.hero_subtitle}
+                    onChange={handleCopyChange}
+                    className="bg-white/5 border border-white/10 rounded px-3 py-2.5 text-white focus:outline-none focus:border-white focus:bg-white/10 uppercase transition-all"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-2">
                   <label className="text-[9px] uppercase text-white/50 tracking-wider font-bold">HOMEPAGE TYPED POETIC STATEMENT</label>
                   <textarea
-                    name="hero_subtitle"
+                    name="poetry"
                     rows={3}
-                    value={copyData.hero_subtitle}
+                    value={copyData.poetry}
                     onChange={handleCopyChange}
                     className="bg-white/5 border border-white/10 rounded px-3 py-2.5 text-white focus:outline-none focus:border-white focus:bg-white/10 resize-none uppercase transition-all leading-relaxed"
                   />
@@ -479,6 +581,27 @@ export default function AdminDashboard({ initialInfo, initialProjects, initialMe
                       onChange={(e) => setProjectData(prev => ({ ...prev, description: e.target.value }))}
                       required
                       className="bg-white/5 border border-white/10 rounded px-3 py-2 text-white focus:outline-none focus:border-white resize-none text-xs uppercase"
+                    />
+                    <input
+                      type="text"
+                      placeholder="SCALE (e.g., 1:1, 1:250)"
+                      value={projectData.scale}
+                      onChange={(e) => setProjectData(prev => ({ ...prev, scale: e.target.value }))}
+                      className="bg-white/5 border border-white/10 rounded px-3 py-2.5 text-white focus:outline-none focus:border-white uppercase text-xs"
+                    />
+                    <input
+                      type="text"
+                      placeholder="LOCATION (e.g., TAGBILARAN CITY)"
+                      value={projectData.location}
+                      onChange={(e) => setProjectData(prev => ({ ...prev, location: e.target.value }))}
+                      className="bg-white/5 border border-white/10 rounded px-3 py-2.5 text-white focus:outline-none focus:border-white uppercase text-xs"
+                    />
+                    <input
+                      type="text"
+                      placeholder="MATERIALS MATRIX (e.g., CARBON, GLASS, STEEL)"
+                      value={projectData.materials}
+                      onChange={(e) => setProjectData(prev => ({ ...prev, materials: e.target.value }))}
+                      className="bg-white/5 border border-white/10 rounded px-3 py-2.5 text-white focus:outline-none focus:border-white uppercase text-xs"
                     />
 
                     {uploadStatus === 'error' && (

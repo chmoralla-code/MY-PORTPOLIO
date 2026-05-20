@@ -9,6 +9,7 @@ export async function PATCH(request: Request) {
     const { 
       hero_title, 
       hero_subtitle, 
+      poetry,
       about_text, 
       contact_email, 
       contact_phone, 
@@ -20,6 +21,7 @@ export async function PATCH(request: Request) {
     const updates = {
       hero_title,
       hero_subtitle,
+      poetry,
       about_text,
       contact_email,
       contact_phone,
