@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { Space_Mono } from 'next/font/google';
 import './globals.css';
+import LenisProvider from '@/components/LenisProvider';
 
 const spaceMono = Space_Mono({
   weight: ['400', '700'],
@@ -33,7 +34,9 @@ export default function RootLayout({
       className={`${spaceMono.variable} h-full antialiased dark`}
     >
       <body className="min-h-full flex flex-col bg-[#030303] text-white font-mono">
-        {children}
+        <LenisProvider>
+          {children}
+        </LenisProvider>
       </body>
     </html>
   );

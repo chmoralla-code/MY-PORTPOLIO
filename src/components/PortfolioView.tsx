@@ -5,6 +5,7 @@ import { ArrowUpRight, ArrowDown, Mail, Phone, MapPin, Send, Check, X } from 'lu
 import BackgroundCanvas from './BackgroundCanvas';
 import OptimizedMedia from './OptimizedMedia';
 import type { PortfolioInfo, Project } from '@/lib/supabase';
+import { useLenis } from 'lenis/react';
 
 interface PortfolioViewProps {
   initialInfo: PortfolioInfo | null;
@@ -12,6 +13,7 @@ interface PortfolioViewProps {
 }
 
 export default function PortfolioView({ initialInfo, initialProjects }: PortfolioViewProps) {
+  const lenis = useLenis();
   const [info] = useState<PortfolioInfo>(
     initialInfo || {
       id: 1,
@@ -94,10 +96,14 @@ export default function PortfolioView({ initialInfo, initialProjects }: Portfoli
   };
 
   const scrollToPanel = (idx: number) => {
-    window.scrollTo({
-      top: idx * window.innerHeight,
-      behavior: 'smooth'
-    });
+    if (lenis) {
+      lenis.scrollTo(idx * window.innerHeight);
+    } else {
+      window.scrollTo({
+        top: idx * window.innerHeight,
+        behavior: 'smooth'
+      });
+    }
   };
 
   return (
