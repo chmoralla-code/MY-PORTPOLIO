@@ -967,69 +967,27 @@ export default function PortfolioView({ initialInfo, initialProjects }: Portfoli
               </button>
             </div>
 
-            {/* Right Column: High-Fashion Interactive HUD Portrait */}
+            {/* Right Column: Clean Interactive Portrait (Without HUD Box Frame) */}
             <div className="lg:col-span-5 flex justify-center lg:justify-end select-none">
               <div 
-                className="relative w-64 h-[370px] sm:w-72 sm:h-[420px] md:w-80 md:h-[480px] rounded-[2.5rem] md:rounded-[3rem] border border-white/10 bg-[#0c0c0e]/40 p-4 backdrop-blur-md shadow-2xl overflow-hidden group cursor-pointer"
+                className="relative w-64 h-[370px] sm:w-72 sm:h-[420px] md:w-80 md:h-[480px] rounded-[2.5rem] md:rounded-[3rem] border border-white/15 overflow-hidden group cursor-pointer shadow-2xl"
                 style={getHeroPortraitStyle()}
               >
-                {/* Tactical CAD grid lines overlay */}
-                <div 
-                  className="absolute inset-0 pointer-events-none opacity-[0.06] z-10"
-                  style={{
-                    backgroundImage: 'linear-gradient(rgba(255,255,255,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.08) 1px, transparent 1px)',
-                    backgroundSize: '16px 16px'
+                <img
+                  src={avatarUrl}
+                  alt={info.hero_title}
+                  onError={() => {
+                    if (avatarUrl !== '/profile.png') {
+                      setAvatarUrl('/profile.png');
+                    }
                   }}
+                  className="w-full h-full object-cover grayscale contrast-125 scale-100 group-hover:scale-105 group-hover:grayscale-0 group-hover:contrast-110 transition-all duration-700 ease-out"
                 />
+                {/* Neon radial glow behind figure */}
+                <div className="absolute inset-0 bg-radial-gradient from-transparent via-black/10 to-black/80 opacity-60 pointer-events-none" />
                 
-                {/* Tech scanline animation */}
-                <div className="absolute top-0 left-0 w-full h-[2px] bg-white/20 blur-[1px] animate-scan z-10 pointer-events-none" />
-
-                {/* Corner Crosshairs */}
-                <div className="absolute top-4 left-4 z-20 text-white/35 font-bold text-[8px]">+</div>
-                <div className="absolute top-4 right-4 z-20 text-white/35 font-bold text-[8px]">+</div>
-                <div className="absolute bottom-4 left-4 z-20 text-white/35 font-bold text-[8px]">+</div>
-                <div className="absolute bottom-4 right-4 z-20 text-white/35 font-bold text-[8px]">+</div>
-
-                {/* Top Readout */}
-                <div className="absolute top-4 left-0 w-full text-center z-20 font-mono text-[7px] text-white/30 uppercase tracking-[0.25em] font-bold">
-                  [ IDENTITY: CORE_SOUL_0965 ]
-                </div>
-
-                {/* Bottom Readout */}
-                <div className="absolute bottom-4 left-0 w-full text-center z-20 font-mono text-[7px] text-white/30 uppercase tracking-[0.25em] font-bold">
-                  [ STATUS: ARCHITECT // STABLE ]
-                </div>
-
-                {/* Portrait Image Block */}
-                <div className="w-full h-full rounded-[2.5rem] overflow-hidden relative border border-white/5">
-                  <img
-                    src={avatarUrl}
-                    alt={info.hero_title}
-                    onError={() => {
-                      if (avatarUrl !== '/profile.png') {
-                        setAvatarUrl('/profile.png');
-                      }
-                    }}
-                    className="w-full h-full object-cover grayscale contrast-125 scale-100 group-hover:scale-105 group-hover:grayscale-0 group-hover:contrast-110 transition-all duration-700 ease-out"
-                  />
-                  {/* Neon radial glow behind figure */}
-                  <div className="absolute inset-0 bg-radial-gradient from-transparent via-black/10 to-black/80 opacity-60" />
-                  
-                  {/* Elegant concrete overlay layer */}
-                  <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-10 transition-opacity duration-500 pointer-events-none mix-blend-overlay" />
-                </div>
-
-                {/* Interactive HUD Spec Cards sliding in from sides on hover */}
-                <div className="absolute top-1/4 left-6 z-30 transition-all duration-500 transform -translate-x-8 opacity-0 group-hover:translate-x-0 group-hover:opacity-100 bg-[#070707]/90 backdrop-blur-md border border-white/10 px-3 py-1.5 rounded-lg font-mono text-[7px] uppercase tracking-wider text-left leading-relaxed">
-                  <span className="text-white/40 block">[ ORIGIN ]</span>
-                  <span className="text-white font-bold">{info.contact_address ? info.contact_address.split(',')[0].trim() : 'BOHOL'}</span>
-                </div>
-
-                <div className="absolute bottom-1/4 right-6 z-30 transition-all duration-500 transform translate-x-8 opacity-0 group-hover:translate-x-0 group-hover:opacity-100 bg-[#070707]/90 backdrop-blur-md border border-white/10 px-3 py-1.5 rounded-lg font-mono text-[7px] uppercase tracking-wider text-left leading-relaxed">
-                  <span className="text-white/40 block">[ DEPTH ]</span>
-                  <span className="text-white font-bold">GRID_ENG: 60FPS</span>
-                </div>
+                {/* Elegant concrete overlay layer */}
+                <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-10 transition-opacity duration-500 pointer-events-none mix-blend-overlay" />
               </div>
             </div>
           </div>
