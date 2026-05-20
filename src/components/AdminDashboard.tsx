@@ -87,6 +87,75 @@ export default function AdminDashboard({ initialInfo, initialProjects, initialMe
   });
   const [copyStatus, setCopyStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
 
+  // Avatar states
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarStatus, setAvatarStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
+  const [avatarError, setAvatarError] = useState('');
+  const [currentAvatar, setCurrentAvatar] = useState('/profile.png');
+
+  // Check custom avatar on mount
+  React.useEffect(() => {
+    const checkCustomAvatar = async () => {
+      try {
+        const res = await fetch('https://hzeqntoxqeylnglkgdnp.supabase.co/storage/v1/object/public/portfolio_images/profile_avatar.webp', { method: 'HEAD' });
+        if (res.ok) {
+          setCurrentAvatar('https://hzeqntoxqeylnglkgdnp.supabase.co/storage/v1/object/public/portfolio_images/profile_avatar.webp?t=' + Date.now());
+        }
+      } catch (e) {
+        console.warn('Custom avatar check failed:', e);
+      }
+    };
+    checkCustomAvatar();
+  }, []);
+
+  const handleAvatarSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setAvatarFile(e.target.files[0]);
+      setAvatarStatus('idle');
+    }
+  };
+
+  const handleAvatarUpload = async () => {
+    if (!avatarFile) return;
+    setAvatarStatus('uploading');
+    setAvatarError('');
+
+    try {
+      let fileToUpload = avatarFile;
+      
+      // Pre-compress to WebP
+      try {
+        const webpBlob = await compressImageToWebP(avatarFile, 0.85);
+        fileToUpload = new File([webpBlob], 'profile_avatar.webp', { type: 'image/webp' });
+      } catch (compressErr) {
+        console.warn('Pre-compression for avatar failed, using raw file:', compressErr);
+      }
+
+      const formData = new FormData();
+      formData.append('file', fileToUpload);
+
+      const res = await fetch('/api/admin/profile-avatar', {
+        method: 'POST',
+        body: formData
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || 'Avatar upload failed');
+      }
+
+      const data = await res.json();
+      setCurrentAvatar(`${data.imageUrl}?t=${Date.now()}`);
+      setAvatarFile(null);
+      setAvatarStatus('success');
+      setTimeout(() => setAvatarStatus('idle'), 2500);
+    } catch (err: any) {
+      console.error('Avatar upload error:', err);
+      setAvatarStatus('error');
+      setAvatarError(err.message || 'Upload failed');
+    }
+  };
+
   // Form states - Project
   const [projectData, setProjectData] = useState({
     title: '',
@@ -95,7 +164,9 @@ export default function AdminDashboard({ initialInfo, initialProjects, initialMe
     client: '',
     scale: '',
     location: '',
-    materials: ''
+    materials: '',
+    density: '2400 kg/m³',
+    thermal: 'R-value: 0.12 m²·K/W'
   });
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [dragActive, setDragActive] = useState(false);
@@ -205,7 +276,13 @@ export default function AdminDashboard({ initialInfo, initialProjects, initialMe
       formData.append('client', projectData.client);
       formData.append('scale', projectData.scale);
       formData.append('location', projectData.location);
-      formData.append('materials', projectData.materials);
+      
+      // Encode density and thermal resistance in materials string
+      let combinedMaterials = projectData.materials;
+      if (projectData.density || projectData.thermal) {
+        combinedMaterials += ` || DENSITY: ${projectData.density || '2400 kg/m³'} || THERMAL: ${projectData.thermal || 'R-value: 0.12 m²·K/W'}`;
+      }
+      formData.append('materials', combinedMaterials);
 
       const res = await fetch('/api/admin/media', {
         method: 'POST',
@@ -230,7 +307,9 @@ export default function AdminDashboard({ initialInfo, initialProjects, initialMe
         client: '',
         scale: '',
         location: '',
-        materials: ''
+        materials: '',
+        density: '2400 kg/m³',
+        thermal: 'R-value: 0.12 m²·K/W'
       });
       setSelectedFile(null);
       setUploadStatus('success');
@@ -366,6 +445,60 @@ export default function AdminDashboard({ initialInfo, initialProjects, initialMe
               <div>
                 <h2 className="text-xs font-bold uppercase tracking-[0.2em] border-b border-white/5 pb-2 mb-3">MANAGE PORTFOLIO COPY</h2>
                 <p className="text-[9px] text-white/40 leading-relaxed uppercase">Instantly update the general texts, contact details, email addresses, and automated Telegram channel alerts.</p>
+              </div>
+
+              {/* Profile Avatar Upload Zone */}
+              <div className="border border-white/10 bg-neutral-950/40 p-5 rounded flex flex-col md:flex-row gap-6 items-center mb-2">
+                <div className="w-20 h-20 rounded-full overflow-hidden border border-white/10 relative flex-shrink-0 bg-neutral-900">
+                  <img 
+                    src={currentAvatar} 
+                    alt="Current Avatar" 
+                    className="w-full h-full object-cover grayscale contrast-125"
+                  />
+                </div>
+                <div className="flex-1 flex flex-col gap-2 w-full">
+                  <label className="text-[9px] uppercase text-white/55 tracking-wider font-bold">[ PORTRAIT CARD PROFILE PHOTO ]</label>
+                  <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      id="avatar-file-input"
+                      className="hidden"
+                      onChange={handleAvatarSelect}
+                    />
+                    <label
+                      htmlFor="avatar-file-input"
+                      className="cursor-pointer border border-white/20 bg-white/5 hover:bg-white/10 transition px-4 py-2 text-center rounded text-[9px] uppercase font-bold tracking-widest flex items-center justify-center gap-2"
+                    >
+                      <UploadCloud className="w-3.5 h-3.5" /> BROWSE NEW PHOTO
+                    </label>
+                    {avatarFile && (
+                      <button
+                        type="button"
+                        onClick={handleAvatarUpload}
+                        disabled={avatarStatus === 'uploading'}
+                        className="bg-white text-black font-bold uppercase tracking-widest text-[9px] px-4 py-2 rounded hover:bg-neutral-200 transition disabled:bg-neutral-600 disabled:text-neutral-400 flex items-center justify-center gap-2 cursor-pointer"
+                      >
+                        {avatarStatus === 'uploading' ? (
+                          <><RefreshCw className="w-3 h-3 animate-spin" /> UPLOADING...</>
+                        ) : (
+                          'CONFIRM UPLOAD'
+                        )}
+                      </button>
+                    )}
+                  </div>
+                  {avatarFile && (
+                    <span className="text-[8px] text-green-400 uppercase font-mono block mt-1">
+                      SELECTED: {avatarFile.name} ({(avatarFile.size / 1024).toFixed(1)} KB)
+                    </span>
+                  )}
+                  {avatarStatus === 'success' && (
+                    <span className="text-[8px] text-green-400 font-bold uppercase block mt-1">✓ PROFILE PORTRAIT UPDATED LIVE</span>
+                  )}
+                  {avatarStatus === 'error' && (
+                    <span className="text-[8px] text-red-400 font-bold uppercase block mt-1">✗ UPLOAD ERROR: {avatarError}</span>
+                  )}
+                </div>
               </div>
 
               <form onSubmit={handleCopySubmit} className="flex flex-col gap-4 text-xs">
@@ -601,6 +734,20 @@ export default function AdminDashboard({ initialInfo, initialProjects, initialMe
                       placeholder="MATERIALS MATRIX (e.g., CARBON, GLASS, STEEL)"
                       value={projectData.materials}
                       onChange={(e) => setProjectData(prev => ({ ...prev, materials: e.target.value }))}
+                      className="bg-white/5 border border-white/10 rounded px-3 py-2.5 text-white focus:outline-none focus:border-white uppercase text-xs"
+                    />
+                    <input
+                      type="text"
+                      placeholder="STRUCTURAL DENSITY (e.g., 2400 kg/m³)"
+                      value={projectData.density}
+                      onChange={(e) => setProjectData(prev => ({ ...prev, density: e.target.value }))}
+                      className="bg-white/5 border border-white/10 rounded px-3 py-2.5 text-white focus:outline-none focus:border-white uppercase text-xs"
+                    />
+                    <input
+                      type="text"
+                      placeholder="THERMAL RESISTANCE (e.g., R-value: 0.12 m²·K/W)"
+                      value={projectData.thermal}
+                      onChange={(e) => setProjectData(prev => ({ ...prev, thermal: e.target.value }))}
                       className="bg-white/5 border border-white/10 rounded px-3 py-2.5 text-white focus:outline-none focus:border-white uppercase text-xs"
                     />
 

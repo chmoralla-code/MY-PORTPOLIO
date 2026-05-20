@@ -209,46 +209,28 @@ class SonicEngine {
     osc2.stop(now + 0.85);
   }
 
-  // Deep, theatrical Godly Voice Synthesis announcement
+  // Deep, theatrical Godly Voice Synthesis announcement (Removed per user request)
   public speakIntro() {
-    if (typeof window === 'undefined' || !window.speechSynthesis) return;
-    
-    // Cancel any active speech to avoid overlaps
-    window.speechSynthesis.cancel();
-    
-    let spoken = false;
-    const speak = () => {
-      if (spoken) return;
-      spoken = true;
-      const utterance = new SpeechSynthesisUtterance("HELLO IM CYRHIEL MORALLA, FRESH GRADUATE");
-      const voices = window.speechSynthesis.getVoices();
-      
-      // Select deep English male voice if possible, otherwise fallback gracefully
-      const selectedVoice = voices.find(v => v.name.toLowerCase().includes('david')) || 
-                            voices.find(v => v.name.toLowerCase().includes('google uk english male')) ||
-                            voices.find(v => v.lang.includes('en') && v.name.toLowerCase().includes('male')) ||
-                            voices.find(v => v.lang.includes('en')) || 
-                            voices[0];
-      
-      if (selectedVoice) utterance.voice = selectedVoice;
-      
-      utterance.pitch = 0.35; // Deep/Godly pitch
-      utterance.rate = 0.72;  // Slow/cinematic tempo
-      utterance.volume = 1.0;
-      
-      window.speechSynthesis.speak(utterance);
-    };
-
-    if (window.speechSynthesis.getVoices().length === 0) {
-      window.speechSynthesis.onvoiceschanged = () => {
-        speak();
-        window.speechSynthesis.onvoiceschanged = null; // Clean up handler
-      };
-    } else {
-      speak();
-    }
+    // No-op
   }
 }
+
+// ==========================================
+// CUSTOM SPECIFICATION MATRIX DECODER
+// ==========================================
+const parseMaterials = (materialsString?: string) => {
+  if (!materialsString) return { composition: 'RAW CONCRETE / GLASS', density: '2400 kg/m³', thermal: 'R-value: 0.12 m²·K/W' };
+  const parts = materialsString.split(' || ');
+  const composition = parts[0] || '';
+  let density = '2400 kg/m³';
+  let thermal = 'R-value: 0.12 m²·K/W';
+  parts.forEach(part => {
+    if (part.startsWith('DENSITY: ')) density = part.replace('DENSITY: ', '');
+    else if (part.startsWith('THERMAL: ')) thermal = part.replace('THERMAL: ', '');
+  });
+  return { composition, density, thermal };
+};
+
 // ==========================================
 // HIGH-TECH MONOSPACE GLYPH SCRAMBLER
 // ==========================================
@@ -364,6 +346,25 @@ export default function PortfolioView({ initialInfo, initialProjects }: Portfoli
       contact_address: 'BOHOL, TAGBILARAN CITY, UBUJAN 6300'
     }
   );
+
+  const [avatarUrl, setAvatarUrl] = useState('/profile.png');
+
+  useEffect(() => {
+    const checkAvatar = async () => {
+      const publicUrl = 'https://hzeqntoxqeylnglkgdnp.supabase.co/storage/v1/object/public/portfolio_images/profile_avatar.webp';
+      try {
+        const res = await fetch(publicUrl, { method: 'HEAD', cache: 'no-cache' });
+        if (res.ok) {
+          setAvatarUrl(`${publicUrl}?t=${Date.now()}`);
+        } else {
+          setAvatarUrl('/profile.png');
+        }
+      } catch (err) {
+        setAvatarUrl('/profile.png');
+      }
+    };
+    checkAvatar();
+  }, []);
 
   // Pad to minimum of 5 columns to guarantee a spectacular full landscape layout showcase
   const [projects] = useState<Project[]>(() => {
@@ -721,7 +722,7 @@ export default function PortfolioView({ initialInfo, initialProjects }: Portfoli
 
           {/* Loading Bottom HUD */}
           <div className="flex justify-between items-end text-[9px] tracking-[0.3em] text-white/35">
-            <span>CYRHIEL MORALLA // ARCHITECT</span>
+            <span>{info.hero_title} // ARCHITECT</span>
             <span>{loadProgress}% LOADED</span>
           </div>
         </div>
@@ -740,7 +741,7 @@ export default function PortfolioView({ initialInfo, initialProjects }: Portfoli
             onClick={() => scrollToPanel(0)}
             className="font-bold text-[10px] md:text-xs uppercase tracking-[0.15em] md:tracking-[0.35em] text-white/80 hover:text-white transition-colors duration-300 focus:outline-none"
           >
-            <InteractiveScrambleText text="CYRHIEL MORALLA" scrambleColor="text-white" />
+            <InteractiveScrambleText text={info.hero_title} scrambleColor="text-white" />
           </button>
         </div>
         
@@ -816,10 +817,10 @@ export default function PortfolioView({ initialInfo, initialProjects }: Portfoli
                 [ THE LIVING DIGITAL WORKSPACE ]
               </span>
               <h1 className="text-3xl md:text-5xl lg:text-6xl font-light leading-none tracking-wide text-white uppercase select-text pr-2 block mb-6 font-sans">
-                <InteractiveScrambleText text="CYRHIEL MORALLA" scrambleColor="text-[#00ff66]" />
+                <InteractiveScrambleText text={info.hero_title} scrambleColor="text-[#00ff66]" />
               </h1>
               <span className="text-white/60 text-[10px] tracking-[0.25em] uppercase mb-6 block font-bold font-mono">
-                <InteractiveScrambleText text="// FRESH GRADUATE // LIVING ARCHITECTURE" scrambleColor="text-white" />
+                <InteractiveScrambleText text={info.hero_subtitle} scrambleColor="text-white" />
               </span>
               <p className="text-xs md:text-sm text-white/55 tracking-wider uppercase leading-relaxed max-w-2xl mb-12 select-text font-mono">
                 {info.poetry || info.hero_subtitle}
@@ -870,8 +871,8 @@ export default function PortfolioView({ initialInfo, initialProjects }: Portfoli
                 {/* Portrait Image Block */}
                 <div className="w-full h-full rounded-[2.5rem] overflow-hidden relative border border-white/5">
                   <img
-                    src="/profile.png"
-                    alt="Cyrhiel Moralla"
+                    src={avatarUrl}
+                    alt={info.hero_title}
                     className="w-full h-full object-cover grayscale contrast-125 scale-100 group-hover:scale-105 group-hover:grayscale-0 group-hover:contrast-110 transition-all duration-700 ease-out"
                   />
                   {/* Neon radial glow behind figure */}
@@ -884,7 +885,7 @@ export default function PortfolioView({ initialInfo, initialProjects }: Portfoli
                 {/* Interactive HUD Spec Cards sliding in from sides on hover */}
                 <div className="absolute top-1/4 left-6 z-30 transition-all duration-500 transform -translate-x-8 opacity-0 group-hover:translate-x-0 group-hover:opacity-100 bg-[#070707]/90 backdrop-blur-md border border-white/10 px-3 py-1.5 rounded-lg font-mono text-[7px] uppercase tracking-wider text-left leading-relaxed">
                   <span className="text-white/40 block">[ ORIGIN ]</span>
-                  <span className="text-white font-bold">BOHOL, PH</span>
+                  <span className="text-white font-bold">{info.contact_address ? info.contact_address.split(',')[0].trim() : 'BOHOL'}</span>
                 </div>
 
                 <div className="absolute bottom-1/4 right-6 z-30 transition-all duration-500 transform translate-x-8 opacity-0 group-hover:translate-x-0 group-hover:opacity-100 bg-[#070707]/90 backdrop-blur-md border border-white/10 px-3 py-1.5 rounded-lg font-mono text-[7px] uppercase tracking-wider text-left leading-relaxed">
@@ -995,7 +996,7 @@ export default function PortfolioView({ initialInfo, initialProjects }: Portfoli
                       </div>
                       <div>
                         <span className="text-white/35 block text-[7px]">[ MATERIALS ]</span>
-                        <span className="text-white font-bold truncate block">{proj.materials || 'N/A'}</span>
+                        <span className="text-white font-bold truncate block">{parseMaterials(proj.materials).composition || 'N/A'}</span>
                       </div>
                     </div>
                     <div className="mt-3 text-center text-white/50 text-[7px] group-hover:text-white transition-colors duration-300 font-bold border-t border-white/10 pt-2 flex items-center justify-center gap-1">
@@ -1147,30 +1148,35 @@ export default function PortfolioView({ initialInfo, initialProjects }: Portfoli
                 </p>
 
                 {/* Expanded Engineering Specs Matrix */}
-                <div className="grid grid-cols-2 gap-4 md:gap-6 border-t border-b border-white/10 py-6 md:py-8 mb-6 md:mb-8 uppercase text-[10px] tracking-wider font-mono">
-                  <div>
-                    <span className="text-white/35 block text-[7px] mb-1.5">[ DRAFTING SCALE ]</span>
-                    <span className="text-white font-bold">{selectedProject.scale || '1:100'}</span>
-                  </div>
-                  <div>
-                    <span className="text-white/35 block text-[7px] mb-1.5">[ COORDINATES / LOC ]</span>
-                    <span className="text-white font-bold truncate block">{selectedProject.location || 'BOHOL, PH'}</span>
-                  </div>
-                  <div className="col-span-2">
-                    <span className="text-white/35 block text-[7px] mb-1.5">[ EXTRACTED MATERIAL COMPOSITION ]</span>
-                    <span className="text-white font-bold leading-relaxed">{selectedProject.materials || 'RAW CONCRETE / GLASS'}</span>
-                  </div>
-                  <div className="col-span-2 border-t border-white/5 pt-4 grid grid-cols-2 gap-4">
-                    <div>
-                      <span className="text-white/35 block text-[7px] mb-1.5">[ STRUCTURAL DENSITY ]</span>
-                      <span className="text-white/60">2400 kg/m³</span>
+                {(() => {
+                  const specs = parseMaterials(selectedProject.materials);
+                  return (
+                    <div className="grid grid-cols-2 gap-4 md:gap-6 border-t border-b border-white/10 py-6 md:py-8 mb-6 md:mb-8 uppercase text-[10px] tracking-wider font-mono">
+                      <div>
+                        <span className="text-white/35 block text-[7px] mb-1.5">[ DRAFTING SCALE ]</span>
+                        <span className="text-white font-bold">{selectedProject.scale || '1:100'}</span>
+                      </div>
+                      <div>
+                        <span className="text-white/35 block text-[7px] mb-1.5">[ COORDINATES / LOC ]</span>
+                        <span className="text-white font-bold truncate block">{selectedProject.location || 'BOHOL, PH'}</span>
+                      </div>
+                      <div className="col-span-2">
+                        <span className="text-white/35 block text-[7px] mb-1.5">[ EXTRACTED MATERIAL COMPOSITION ]</span>
+                        <span className="text-white font-bold leading-relaxed">{specs.composition || 'RAW CONCRETE / GLASS'}</span>
+                      </div>
+                      <div className="col-span-2 border-t border-white/5 pt-4 grid grid-cols-2 gap-4">
+                        <div>
+                          <span className="text-white/35 block text-[7px] mb-1.5">[ STRUCTURAL DENSITY ]</span>
+                          <span className="text-white/60">{specs.density}</span>
+                        </div>
+                        <div>
+                          <span className="text-white/35 block text-[7px] mb-1.5">[ THERMAL RESISTANCE ]</span>
+                          <span className="text-white/60">{specs.thermal}</span>
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <span className="text-white/35 block text-[7px] mb-1.5">[ THERMAL RESISTANCE ]</span>
-                      <span className="text-white/60">R-value: 0.12 m²·K/W</span>
-                    </div>
-                  </div>
-                </div>
+                  );
+                })()}
               </div>
 
               <div className="flex flex-col sm:flex-row gap-4 border-t border-white/5 pt-6 mb-6 lg:mb-0">
